@@ -1,0 +1,6 @@
+{
+  "name": "chorundo?",
+  "description": "A community-based food sharing platform connecting donors, recipients, and partner restaurants to provide meals for those in need.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
