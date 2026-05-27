@@ -4,6 +4,7 @@ import { Heart, Compass, Shield, ArrowRight, Smartphone, BookOpen, Clock, Mail, 
 import { Kitchen } from '../types';
 import CustomLandingMap from './CustomLandingMap';
 import DetailsView from './DetailsView';
+import keralaSadhyaMeal from '../assets/images/kerala_sadhya_meal_1779889824503.png';
 
 interface LandingPageProps {
   kitchens: Kitchen[];
@@ -284,7 +285,7 @@ export default function LandingPage({
                   <div className="h-56 bg-emerald-800 rounded-2xl overflow-hidden relative border border-emerald-900 shadow-inner">
                     <img 
                       className="w-full h-full object-cover opacity-70 mix-blend-overlay" 
-                      src="/src/assets/images/kerala_sadhya_meal_1779889824503.png" 
+                      src={keralaSadhyaMeal} 
                       alt="Traditional Kerala Meal" 
                       referrerPolicy="no-referrer"
                     />
