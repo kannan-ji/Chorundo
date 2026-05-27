@@ -2,7 +2,7 @@
 
 > **"Have you eaten yet?"** — A dignity-first, community-driven nourishment network.
 
-`chorundo?` (Malayalam for *"Have you had rice/food?"*) is a modern, high-contrast, fully responsive platform designed to bridge the gap between hungry walk-in guests, generous donors, and local neighborhood kitchen systems without sacrificing human dignity.
+`chorundo?` (Malayalam for *"Have you had food?"*) is a modern, high-contrast, fully responsive platform designed to bridge the gap between hungry walk-in guests, generous donors, and local neighborhood kitchen systems without sacrificing human dignity.
 
 ---
 
