@@ -440,11 +440,14 @@ export default function LandingPage({
                     it all starts in kerala's hearts.
                   </h3>
                   <div className="space-y-6 text-left md:text-center">
-                    <p className="text-xs md:text-sm text-slate-600 leading-relaxed font-sans">
-                      chorundo? translates literally in Malayalam to <span className="italic font-bold text-emerald-800">"Did you have meal?"</span>. It is the signature question heard at the front door of every home across the state—rooted in a collective code that no stranger, worker, or neighbor should experience hunger.
+                    <p className="text-xs md:text-sm text-slate-650 leading-relaxed font-sans">
+                      chorundo? translates literally in Malayalam to <span className="italic font-semibold text-emerald-800">"Did you have meal?"</span>. It is the signature question heard at the front door of every home across the state—rooted in a collective code that no stranger, worker, or neighbor should experience hunger.
                     </p>
-                    <p className="text-xs md:text-sm text-slate-600 leading-relaxed font-sans">
+                    <p className="text-xs md:text-sm text-slate-650 leading-relaxed font-sans">
                       With soaring costs and dynamic struggles, our neighborhood junctions remain vulnerable. We created chorundo? to link citizen solidarity directly to localized dining tables. No marketing overhead, no database synchronization dependencies, and complete transparent traceability.
+                    </p>
+                    <p className="text-xs md:text-sm text-slate-650 leading-relaxed font-sans border-t border-dashed border-emerald-100/80 pt-4 mt-2">
+                      Our philosophy is directly inspired by <span className="font-semibold text-emerald-800">Operation Sulaimani</span>—the legendary district-wide food-dignity initiative pioneered in Kozhikode (Calicut), Kerala. Much like that groundbreaking community-funded program, chorundo? believes in ensuring no neighbor goes hungry, preserving absolute privacy and dignity without public queues or identifying those in need. We stand on the shoulders of this timeless vision, keeping Kerala's custom of infinite hospitality alive in the digital age.
                     </p>
                   </div>
                   
