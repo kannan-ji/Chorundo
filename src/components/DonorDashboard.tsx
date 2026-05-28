@@ -1,7 +1,8 @@
 import { CreditCard, Heart, Landmark as LandmarkIcon, Sparkles, Trophy, Users } from 'lucide-react';
 import { motion } from 'motion/react';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Donation, Kitchen } from '../types';
+import L from 'leaflet';
 
 interface DonorDashboardProps {
   kitchens: Kitchen[];
@@ -17,7 +18,127 @@ export default function DonorDashboard({ kitchens, donations, onSponsorMeals }: 
   const [message, setMessage] = useState<string>('');
   const [paymentStep, setPaymentStep] = useState<'form' | 'processing' | 'success'>('form');
 
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const kitchensLayerRef = useRef<L.LayerGroup | null>(null);
+
   const selectedKitchen = kitchens.find(k => k.id === selectedKitchenId) || kitchens[0];
+
+  // Initialize Map
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    if (!mapInstanceRef.current) {
+      const initialLat = selectedKitchen?.lat || 10.1064;
+      const initialLng = selectedKitchen?.lng || 76.3534;
+
+      const map = L.map(mapContainerRef.current, {
+        zoomControl: false,
+        attributionControl: false,
+      }).setView([initialLat, initialLng], 14);
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+      }).addTo(map);
+
+      // Attribution control scale at bottom-right
+      L.control.attribution({
+        position: 'bottomleft',
+        prefix: 'Chorundo? | © OpenStreetMap'
+      }).addTo(map);
+
+      L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map);
+
+      mapInstanceRef.current = map;
+      kitchensLayerRef.current = L.layerGroup().addTo(map);
+
+      // Multi-phase size invalidations to handle parent entry animations and CSS loading
+      map.invalidateSize();
+      setTimeout(() => map.invalidateSize(), 50);
+      setTimeout(() => map.invalidateSize(), 150);
+      setTimeout(() => map.invalidateSize(), 300);
+      setTimeout(() => map.invalidateSize(), 600);
+      setTimeout(() => map.invalidateSize(), 1200);
+      setTimeout(() => map.invalidateSize(), 2400);
+    }
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        kitchensLayerRef.current = null;
+      }
+    };
+  }, []);
+
+  // Sync active kitchen pins with placards 
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const layer = kitchensLayerRef.current;
+    if (!map || !layer) return;
+
+    layer.clearLayers();
+
+    kitchens.forEach((k) => {
+      const isSelected = selectedKitchenId === k.id;
+      const hasMeals = k.sponsoredCount > 0;
+      const leavesCount = k.sponsoredCount;
+
+      const kitchenIcon = L.divIcon({
+        html: `
+          <div class="relative flex flex-col items-center select-none pointer-events-auto" style="width: 140px; text-align: center;">
+            <!-- Leaves / Meal balance bubble -->
+            <div class="bg-white px-2 py-0.5 rounded-full border ${isSelected ? 'border-blue-400 bg-blue-50' : hasMeals ? 'border-emerald-300' : 'border-slate-300'} shadow-sm flex items-center justify-center gap-0.5 mb-0.5">
+              <svg viewBox="0 0 100 100" class="w-2.5 h-2.5 ${isSelected ? 'fill-blue-600' : 'fill-emerald-700'} stroke-none shrink-0">
+                <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
+              </svg>
+              <span class="text-[9.5px] font-black font-mono ${isSelected ? 'text-blue-800' : 'text-emerald-800'}">${leavesCount}</span>
+            </div>
+            
+            <!-- Pin pointing node -->
+            <div class="relative flex items-center justify-center mb-0.5">
+              ${isSelected ? '<span class="absolute -inset-2.5 rounded-full bg-blue-400/30 opacity-75 animate-ping"></span>' : hasMeals ? '<span class="absolute -inset-1.5 rounded-full bg-emerald-400/20 opacity-75 animate-pulse"></span>' : ''}
+              
+              <div class="w-7 h-7 rounded-full flex items-center justify-center border-2 shadow-md transition-all duration-300 ${
+                isSelected
+                  ? 'bg-blue-600 border-white text-white' 
+                  : hasMeals
+                  ? 'bg-emerald-700 border-white text-white'
+                  : 'bg-slate-405 border-slate-300 text-slate-500 opacity-60'
+              }">
+                <svg viewBox="0 0 100 100" class="w-3.5 h-3.5 fill-current stroke-none">
+                  <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
+                </svg>
+              </div>
+            </div>
+            
+            <!-- Permanent High-Contrast Label -->
+            <div class="${isSelected ? 'bg-blue-800 text-white border-blue-900 shadow-md ring-2 ring-white' : 'bg-slate-900/95 text-white border-slate-800 shadow'} text-[9.5px] font-bold px-1.5 py-0.5 rounded border text-center whitespace-nowrap max-w-[130px] truncate">
+              ${k.name}
+            </div>
+          </div>
+        `,
+        className: '',
+        iconSize: [140, 100],
+        iconAnchor: [70, 50]
+      });
+
+      const marker = L.marker([k.lat, k.lng], { icon: kitchenIcon });
+      marker.on('click', () => {
+        setSelectedKitchenId(k.id);
+      });
+      marker.addTo(layer);
+    });
+  }, [kitchens, selectedKitchenId]);
+
+  // Handle map center view updates on selected selection change
+  useEffect(() => {
+    if (mapInstanceRef.current && selectedKitchen) {
+      mapInstanceRef.current.setView([selectedKitchen.lat, selectedKitchen.lng], 14, {
+        animate: true,
+      });
+    }
+  }, [selectedKitchenId]);
   const MEAL_UNIT_COST = selectedKitchen?.mealPrice || 40;
   
   const currMeals = mealsCount === 0 ? parseInt(customMeals) || 0 : mealsCount;
@@ -234,6 +355,23 @@ export default function DonorDashboard({ kitchens, donations, onSponsorMeals }: 
               </div>
             </motion.div>
           )}
+        </div>
+
+        {/* Neighborhood Sponsorship Map */}
+        <div className="bg-white border border-slate-200/80 p-5 rounded-3xl shadow-sm">
+          <div className="flex items-center justify-between mb-3.5">
+            <span className="text-xs font-mono font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
+              Neighborhood Sponsorship Map
+            </span>
+            <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-mono">
+              Click pins to select kitchen
+            </span>
+          </div>
+
+          <div className="relative w-full aspect-video md:aspect-[2.3/1] bg-[#EFECE6] border border-slate-350/40 rounded-2xl overflow-hidden shadow-inner z-0">
+            <div ref={mapContainerRef} className="w-full h-full" style={{ height: '100%', minHeight: '220px' }} />
+          </div>
         </div>
       </div>
 

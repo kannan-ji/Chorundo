@@ -6,3 +6,16 @@
   --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Space Grotesk", ui-monospace, SFMono-Regular, monospace;
 }
+
+/* Custom Leaflet overrides */
+.leaflet-div-icon {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.leaflet-container {
+  font-family: inherit;
+  background-color: #EFECE6 !important;
+}
+

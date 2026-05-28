@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { MapPin, Compass, Search, Navigation, Info, Unlock, Eye, Sparkles, Smile, RefreshCw, AlertCircle } from 'lucide-react';
+import { MapPin, Compass, Navigation, Info, Smile, AlertCircle } from 'lucide-react';
 import { Kitchen } from '../types';
 import { calculateDistance } from '../data';
+import L from 'leaflet';
 
 interface CustomLandingMapProps {
   kitchens: Kitchen[];
@@ -25,7 +26,6 @@ export default function CustomLandingMap({
 }: CustomLandingMapProps) {
   const [zoomLevel, setZoomLevel] = useState(14);
   const [isLocating, setIsLocating] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [radiusKm, setRadiusKm] = useState(1.0); // 1 km radius default
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
 
@@ -37,6 +37,12 @@ export default function CustomLandingMap({
     { name: 'Kozhikode Beach/Railway Rd (Near Malaya green)', lat: 11.2505, lng: 75.7812 },
     { name: 'Generic Kerala Spot (No Meals Nearby)', lat: 10.5276, lng: 76.2144 },
   ];
+
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const userMarkerRef = useRef<L.Marker | null>(null);
+  const userCircleRef = useRef<L.Circle | null>(null);
+  const kitchensLayerRef = useRef<L.LayerGroup | null>(null);
 
   // Geolocation trigger
   const handleGPSDetect = () => {
@@ -56,7 +62,7 @@ export default function CustomLandingMap({
       },
       (error) => {
         setIsLocating(false);
-        setAlertMsg("Permission denied/could not resolve GPS. Simulating standard Aluva center.");
+        setAlertMsg("Permission denied or failed to resolve GPS. Simulating standard Aluva center.");
         setUserCoords({ lat: 10.1075, lng: 76.3542 }); // Fallback back to Aluva
       },
       { timeout: 7000 }
@@ -80,21 +86,191 @@ export default function CustomLandingMap({
     }
   }, [userCoords, radiusKm, isLocked]);
 
-  // Convert coordinate degrees to interactive SVG map space (2D Georeferenced Projection representation)
-  // Centered relative to current userCoords
-  const getRelativePosition = (lat: number, lng: number) => {
-    // 1 lat degree is roughly 111 km, 1 lng degree is roughly 109 km in Kerala
-    // Map bounds represents roughly ~3km width & height at zoom 14
-    const scaleFactor = 150000 / (17 - zoomLevel); 
-    const dx = (lng - userCoords.lng) * scaleFactor;
-    const dy = (userCoords.lat - lat) * scaleFactor;
+  // Map Initialization
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
 
-    // SVG center is at (150, 100)
-    return {
-      x: 150 + dx,
-      y: 100 + dy,
+    if (!mapInstanceRef.current) {
+      // Create leaflet map
+      const map = L.map(mapContainerRef.current, {
+        zoomControl: false,
+        attributionControl: false,
+      }).setView([userCoords.lat, userCoords.lng], zoomLevel);
+
+      // CARTO Voyager tiles - neat light vector styling perfect for clean custom apps
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+      }).addTo(map);
+
+      // Attribution
+      L.control.attribution({
+        position: 'bottomleft',
+        prefix: 'Chorundo? | © OpenStreetMap Contributors'
+      }).addTo(map);
+
+      // Custom Zoom Control placed at bottom right (cleaner)
+      L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map);
+
+      mapInstanceRef.current = map;
+      kitchensLayerRef.current = L.layerGroup().addTo(map);
+
+      map.on('zoomend', () => {
+        setZoomLevel(map.getZoom());
+      });
+
+      // Recalculate size across multiple frames to resolve any layout shift or image/font latency
+      setTimeout(() => map.invalidateSize(), 50);
+      setTimeout(() => map.invalidateSize(), 200);
+      setTimeout(() => map.invalidateSize(), 500);
+      setTimeout(() => map.invalidateSize(), 1000);
+      setTimeout(() => map.invalidateSize(), 2000);
+    }
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        kitchensLayerRef.current = null;
+        userMarkerRef.current = null;
+        userCircleRef.current = null;
+      }
     };
-  };
+  }, []);
+
+  // Update zoom
+  useEffect(() => {
+    if (mapInstanceRef.current && mapInstanceRef.current.getZoom() !== zoomLevel) {
+      mapInstanceRef.current.setZoom(zoomLevel);
+    }
+  }, [zoomLevel]);
+
+  // Invalidate Map size when blur lock shifts (prevents leaflet half rendering bug)
+  useEffect(() => {
+    if (!isLocked && mapInstanceRef.current) {
+      // Trigger multiple size updates over the transition window
+      const map = mapInstanceRef.current;
+      map.invalidateSize();
+      setTimeout(() => map.invalidateSize(), 50);
+      setTimeout(() => map.invalidateSize(), 150);
+      setTimeout(() => map.invalidateSize(), 300);
+      setTimeout(() => map.invalidateSize(), 500);
+      setTimeout(() => map.invalidateSize(), 1000);
+    }
+  }, [isLocked]);
+
+  // Coordinate center adjustment & view flying
+  useEffect(() => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setView([userCoords.lat, userCoords.lng], zoomLevel, {
+        animate: true,
+      });
+    }
+  }, [userCoords.lat, userCoords.lng]);
+
+  // Sync user coordinate node and radius circle circle boundary
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Custom pulse node user marker SVG
+    const userIcon = L.divIcon({
+      html: `
+        <div class="relative flex items-center justify-center">
+          <span class="absolute inline-flex h-8 w-8 rounded-full bg-emerald-500/30 opacity-75 animate-ping"></span>
+          <div class="w-8 h-8 bg-emerald-700 rounded-full border-2 border-white flex items-center justify-center shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-white">
+              <circle cx="12" cy="12" r="10" fill="currentColor" fill-opacity="0.1" />
+              <circle cx="12" cy="12" r="4" fill="currentColor" />
+            </svg>
+          </div>
+        </div>
+      `,
+      className: '',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setLatLng([userCoords.lat, userCoords.lng]);
+    } else {
+      userMarkerRef.current = L.marker([userCoords.lat, userCoords.lng], { icon: userIcon }).addTo(map);
+    }
+
+    if (userCircleRef.current) {
+      userCircleRef.current.setLatLng([userCoords.lat, userCoords.lng]);
+      userCircleRef.current.setRadius(radiusKm * 1000);
+    } else {
+      userCircleRef.current = L.circle([userCoords.lat, userCoords.lng], {
+        radius: radiusKm * 1000,
+        fillColor: '#047857',
+        fillOpacity: 0.05,
+        color: '#047857',
+        weight: 1.5,
+        dashArray: '5, 4',
+      }).addTo(map);
+    }
+  }, [userCoords, radiusKm]);
+
+  // Sync active kitchen pins with SVG badges containing available leaf counts
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const layer = kitchensLayerRef.current;
+    if (!map || !layer) return;
+
+    layer.clearLayers();
+
+    kitchens.forEach((k) => {
+      const isNearby = nearKitchens.some(nk => nk.id === k.id);
+      const leavesCount = k.sponsoredCount;
+
+      const kitchenIcon = L.divIcon({
+        html: `
+          <div class="relative flex flex-col items-center select-none pointer-events-auto" style="width: 140px; text-align: center;">
+            <!-- Leaves / Meal balance bubble -->
+            <div class="bg-white px-2 py-0.5 rounded-full border ${isNearby ? 'border-emerald-300' : 'border-slate-300'} shadow-sm flex items-center justify-center gap-0.5 mb-0.5 transform transition-transform group-hover:scale-105 duration-200">
+              <svg viewBox="0 0 100 100" class="w-2.5 h-2.5 fill-emerald-700 stroke-none shrink-0">
+                <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
+              </svg>
+              <span class="text-[9.5px] font-black font-mono text-emerald-800">${leavesCount}</span>
+            </div>
+            
+            <!-- Pin pointing node -->
+            <div class="relative flex items-center justify-center mb-0.5">
+              ${leavesCount > 0 && isNearby && !isLocked ? '<span class="absolute -inset-2 rounded-full bg-emerald-400/30 opacity-75 animate-pulse"></span>' : ''}
+              
+              <div class="w-7 h-7 rounded-full flex items-center justify-center border-2 shadow-md transition-all duration-300 ${
+                isNearby && !isLocked
+                  ? 'bg-emerald-700 border-white text-white' 
+                  : 'bg-slate-405 border-slate-350 text-slate-500 opacity-60'
+              }">
+                <svg viewBox="0 0 100 100" class="w-3.5 h-3.5 fill-current stroke-none">
+                  <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
+                </svg>
+              </div>
+            </div>
+            
+            <!-- Permanent High-Contrast Label -->
+            <div class="bg-slate-900/95 text-white text-[9.5px] font-bold px-1.5 py-0.5 rounded shadow-md border border-slate-800 text-center whitespace-nowrap max-w-[130px] truncate">
+              ${k.name}
+            </div>
+          </div>
+        `,
+        className: '',
+        iconSize: [140, 100],
+        iconAnchor: [70, 50]
+      });
+
+      const marker = L.marker([k.lat, k.lng], { icon: kitchenIcon });
+      
+      marker.on('click', () => {
+        if (!isLocked) {
+          onKitchenClick(k);
+        }
+      });
+      
+      marker.addTo(layer);
+    });
+  }, [kitchens, nearKitchens, userCoords, isLocked]);
 
   return (
     <div className="relative w-full rounded-3xl border border-slate-200 bg-slate-50 shadow-sm overflow-hidden min-h-[480px]">
@@ -141,16 +317,14 @@ export default function CustomLandingMap({
         </div>
       )}
 
-      {/* 2. LIVE INTERACTIVE CUSTOM GOOGLE MAP IF UNLOCKED */}
-      
-      {/* Real Maps Look and Feel Banner Controls */}
+      {/* 2. REAL INTERACTIVE OPENSTREET MAP HEADERS */}
       <div className="bg-white border-b border-slate-200/60 p-3.5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 relative z-10">
         <div className="flex items-center gap-2">
           <div className="w-3.5 h-3.5 bg-emerald-100 border border-emerald-500 rounded-full flex items-center justify-center">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
           </div>
           <span className="text-xs font-mono font-black text-slate-500 uppercase tracking-wider">
-            chorundo? Compass Map (customised vector)
+            chorundo? Radar active (OpenStreetMap)
           </span>
         </div>
 
@@ -188,143 +362,16 @@ export default function CustomLandingMap({
         </div>
       </div>
 
-      {/* Map Interactive Grid Canvas */}
-      <div className="relative w-full aspect-[2.1/1] overflow-hidden bg-[#e5e9f0]" style={{ height: '420px' }}>
-        
-        {/* SVG Cartesian Vector Layer representing standard Kerala grid */}
-        <svg viewBox="0 0 300 200" className="w-full h-full absolute inset-0 select-none">
-          {/* Subtle maps patterns */}
-          <pattern id="gridPattern" width="30" height="30" patternUnits="userSpaceOnUse">
-            <rect width="30" height="30" fill="#f4f7f6" />
-            <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#e1e8e5" strokeWidth="0.8" />
-          </pattern>
-          <rect width="100%" height="100%" fill="url(#gridPattern)" />
-
-          {/* Kochi Metro line & bypass road drawing references */}
-          <path d="M-10,130 C50,120 180,100 310,120" fill="none" stroke="#d5dcda" strokeWidth="8" strokeLinecap="round" />
-          <path d="M-10,130 C50,120 180,100 310,120" fill="none" stroke="#ffffff" strokeWidth="5" strokeLinecap="round" />
-          
-          <path d="M120,-10 C140,80 150,130 130,210" fill="none" stroke="#d5dcda" strokeWidth="10" strokeLinecap="round" />
-          <path d="M120,-10 C140,80 150,130 130,210" fill="none" stroke="#ffffff" strokeWidth="7" strokeLinecap="round" />
-
-          {/* Backwater element watermark in Kochi */}
-          <path d="M10,210 C80,190 110,140 100,80 C90,20 40,40 10,-10 Z" fill="#cbe3f0" opacity="0.8" />
-
-          {/* 1 Km Radius Circle centered around the user location */}
-          <circle
-            cx="150"
-            cy="100"
-            r={50 * radiusKm} // ~50px corresponds to 1km radius
-            fill="rgba(16, 185, 129, 0.08)"
-            stroke="#10b981"
-            strokeWidth="1.5"
-            strokeDasharray="4,3"
-            id="radius-circle"
-            className="animate-pulse"
-          />
-
-          {/* Direct dotted compass paths to nearby kitchens */}
-          {nearKitchens.map((k) => {
-            const relativePos = getRelativePosition(k.lat, k.lng);
-            // Only draw lines if within container bounds
-            if (relativePos.x >= 0 && relativePos.x <= 300 && relativePos.y >= 0 && relativePos.y <= 200) {
-              return (
-                <line
-                  key={`line-${k.id}`}
-                  x1="150"
-                  y1="100"
-                  x2={relativePos.x}
-                  y2={relativePos.y}
-                  stroke="#10b981"
-                  strokeWidth="1"
-                  strokeDasharray="3,3"
-                  opacity="0.6"
-                />
-              );
-            }
-            return null;
-          })}
-        </svg>
-
-        {/* 3. HTML MARKERS LAYER ON TOP OF CANVAS */}
-        
-        {/* User Centered Node */}
-        <div
-          style={{ left: '50%', top: '50%' }}
-          className="absolute -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center group cursor-default"
-        >
-          <div className="relative">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500/30 opacity-75 animate-ping" />
-            <div className="w-7 h-7 bg-emerald-600 rounded-full border-2 border-white flex items-center justify-center shadow-lg transform active:scale-95 transition-transform">
-              <MapPin className="w-4 h-4 text-white fill-white/10" />
-            </div>
-            
-            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 bg-slate-900 border border-slate-700/50 text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded shadow-lg whitespace-nowrap opacity-100 transition-opacity">
-              My Spot ({userCoords.lat.toFixed(4)}, {userCoords.lng.toFixed(4)})
-            </div>
-          </div>
-        </div>
-
-        {/* Plantain Leaf Kitchen Spots */}
-        {kitchens.map((k) => {
-          const rPos = getRelativePosition(k.lat, k.lng);
-          const isNearby = nearKitchens.some(nk => nk.id === k.id);
-
-          // Render only if within realistic visual boundaries
-          if (rPos.x < -20 || rPos.x > 320 || rPos.y < -20 || rPos.y > 220) return null;
-
-          return (
-            <div
-              key={`marker-${k.id}`}
-              style={{ left: `${(rPos.x / 300) * 100}%`, top: `${(rPos.y / 200) * 100}%` }}
-              className="absolute -translate-x-1/2 -translate-y-1/2 z-10"
-            >
-              <button
-                onClick={() => onKitchenClick(k)}
-                id={`kitchen-marker-${k.id}`}
-                className={`relative cursor-pointer group focus:outline-none flex flex-col items-center ${
-                  !isNearby && !isLocked ? 'opacity-40 hover:opacity-80 transition-all' : ''
-                }`}
-              >
-                {/* Aura pulse for restaurants with meal balance */}
-                {k.sponsoredCount > 0 && isNearby && (
-                  <span className="absolute -inset-3 rounded-full bg-emerald-300/35 opacity-75 animate-pulse" />
-                )}
-
-                {/* Customized marker matching exact brand leaf icon */}
-                <div
-                  className={`w-9.5 h-9.5 rounded-full flex items-center justify-center border-2 shadow-md transition-all duration-300 ${
-                    isNearby
-                      ? 'bg-emerald-650 border-white text-white scale-105 hover:scale-110'
-                      : 'bg-white border-slate-300 text-slate-500'
-                  }`}
-                >
-                  <svg viewBox="0 0 100 100" className="w-5.5 h-5.5 fill-white stroke-white">
-                    <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
-                  </svg>
-                </div>
-
-                {/* Meal counter badge on marker */}
-                <span
-                  className={`absolute -top-1.5 -right-1 w-5 h-5 rounded-full border border-white text-[9px] font-black flex items-center justify-center text-white ${
-                    k.sponsoredCount > 0 ? 'bg-amber-500' : 'bg-slate-400'
-                  }`}
-                >
-                  {k.sponsoredCount}
-                </span>
-
-                {/* Tooltip detail tag */}
-                <div className="absolute top-11 bg-white border border-slate-200/80 px-2 py-1 rounded-lg shadow-lg text-[10px] font-bold text-slate-800 whitespace-nowrap opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-40 flex items-center gap-1.5">
-                  <span className="text-slate-800 font-sans">{k.name.split(' ')[0]}</span>
-                  <span className="text-emerald-700 font-mono">({k.sponsoredCount} 🍃)</span>
-                </div>
-              </button>
-            </div>
-          );
-        })}
+      {/* 3. LEAFLET CONTAINER CANVAS */}
+      <div className="relative w-full overflow-hidden bg-[#EFECE6] z-0" style={{ height: '420px' }}>
+        <div 
+          ref={mapContainerRef} 
+          className="w-full h-full"
+          style={{ height: '100%' }}
+        />
       </div>
 
-      {/* Detail list footer below preview */}
+      {/* 4. DETAILS FOOTER AND DISTANCE RADIUS SELECTORS */}
       <div className="bg-white border-t border-slate-200/60 p-4 font-sans text-xs">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">

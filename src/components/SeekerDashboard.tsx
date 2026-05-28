@@ -1,8 +1,9 @@
 import { Compass, Info, MapPin, Navigation, Phone, RotateCcw, ShieldCheck, Ticket } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { calculateDistance } from '../data';
 import { Kitchen, MealClaim } from '../types';
+import L from 'leaflet';
 
 interface SeekerDashboardProps {
   kitchens: Kitchen[];
@@ -29,6 +30,12 @@ export default function SeekerDashboard({
   const [selectedKitchenId, setSelectedKitchenId] = useState<string | null>(initialKitchenId || kitchens[0]?.id || null);
   const [activeFilter, setActiveFilter] = useState<'all' | 'available' | 'nearby'>('all');
 
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const userMarkerRef = useRef<L.Marker | null>(null);
+  const userCircleRef = useRef<L.Circle | null>(null);
+  const kitchensLayerRef = useRef<L.LayerGroup | null>(null);
+
   useEffect(() => {
     if (initialKitchenId) {
       setSelectedKitchenId(initialKitchenId);
@@ -36,6 +43,186 @@ export default function SeekerDashboard({
   }, [initialKitchenId]);
 
   const selectedKitchen = kitchens.find(k => k.id === selectedKitchenId) || kitchens[0];
+
+  // Sync available list with location distance
+  const kitchensWithDistance = kitchens.map(k => {
+    const dist = calculateDistance(userCoords.lat, userCoords.lng, k.lat, k.lng);
+    return { ...k, distanceKm: dist };
+  }).sort((a, b) => a.distanceKm - b.distanceKm);
+
+  // Filter kitchens
+  const filteredKitchens = kitchensWithDistance.filter(k => {
+    if (activeFilter === 'available') return k.sponsoredCount > 0;
+    if (activeFilter === 'nearby') return k.distanceKm < 50; // arbitrary near criteria
+    return true;
+  });
+
+  // Initialize Map
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    if (!mapInstanceRef.current) {
+      const map = L.map(mapContainerRef.current, {
+        zoomControl: false,
+        attributionControl: false,
+      }).setView([userCoords.lat, userCoords.lng], 14);
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+      }).addTo(map);
+
+      // Attribution control scale at bottom-right
+      L.control.attribution({
+        position: 'bottomleft',
+        prefix: 'Chorundo? | © OpenStreetMap'
+      }).addTo(map);
+
+      L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map);
+
+      mapInstanceRef.current = map;
+      kitchensLayerRef.current = L.layerGroup().addTo(map);
+
+      // Multi-phase size invalidations to handle parent entry animations and CSS loading
+      map.invalidateSize();
+      setTimeout(() => map.invalidateSize(), 50);
+      setTimeout(() => map.invalidateSize(), 150);
+      setTimeout(() => map.invalidateSize(), 300);
+      setTimeout(() => map.invalidateSize(), 600);
+      setTimeout(() => map.invalidateSize(), 1200);
+      setTimeout(() => map.invalidateSize(), 2400);
+    }
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        kitchensLayerRef.current = null;
+        userMarkerRef.current = null;
+        userCircleRef.current = null;
+      }
+    };
+  }, []);
+
+  // Sync user location marker & radius search limit ring
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const userIcon = L.divIcon({
+      html: `
+        <div class="relative flex items-center justify-center">
+          <span class="absolute inline-flex h-8 w-8 rounded-full bg-emerald-500/30 opacity-75 animate-ping"></span>
+          <div class="w-8 h-8 bg-emerald-700 rounded-full border-2 border-white flex items-center justify-center shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-white">
+              <circle cx="12" cy="12" r="10" fill="currentColor" fill-opacity="0.1" />
+              <circle cx="12" cy="12" r="4" fill="currentColor" />
+            </svg>
+          </div>
+        </div>
+      `,
+      className: '',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setLatLng([userCoords.lat, userCoords.lng]);
+    } else {
+      userMarkerRef.current = L.marker([userCoords.lat, userCoords.lng], { icon: userIcon }).addTo(map);
+    }
+
+    if (userCircleRef.current) {
+      userCircleRef.current.setLatLng([userCoords.lat, userCoords.lng]);
+    } else {
+      userCircleRef.current = L.circle([userCoords.lat, userCoords.lng], {
+        radius: 1000, // 1 km
+        fillColor: '#047857',
+        fillOpacity: 0.04,
+        color: '#047857',
+        weight: 1.2,
+        dashArray: '5, 4',
+      }).addTo(map);
+    }
+  }, [userCoords]);
+
+  // Handle map view pans on selected kitchen change
+  useEffect(() => {
+    if (mapInstanceRef.current && selectedKitchen) {
+      mapInstanceRef.current.setView([selectedKitchen.lat, selectedKitchen.lng], 14, {
+        animate: true,
+      });
+    }
+  }, [selectedKitchenId]);
+
+  // Sync active kitchen pins with placards 
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const layer = kitchensLayerRef.current;
+    if (!map || !layer) return;
+
+    layer.clearLayers();
+
+    filteredKitchens.forEach((k) => {
+      const isSelected = selectedKitchenId === k.id;
+      const hasMeals = k.sponsoredCount > 0;
+      const leavesCount = k.sponsoredCount;
+
+      const kitchenIcon = L.divIcon({
+        html: `
+          <div class="relative flex flex-col items-center select-none pointer-events-auto" style="width: 140px; text-align: center;">
+            <!-- Leaves / Meal balance bubble -->
+            <div class="bg-white px-2 py-0.5 rounded-full border ${isSelected ? 'border-amber-400 bg-amber-50' : hasMeals ? 'border-emerald-300' : 'border-slate-300'} shadow-sm flex items-center justify-center gap-0.5 mb-0.5">
+              <svg viewBox="0 0 100 100" class="w-2.5 h-2.5 ${isSelected ? 'fill-amber-600' : 'fill-emerald-700'} stroke-none shrink-0">
+                <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
+              </svg>
+              <span class="text-[9.5px] font-black font-mono ${isSelected ? 'text-amber-800' : 'text-emerald-800'}">${leavesCount}</span>
+            </div>
+            
+            <!-- Pin pointing node -->
+            <div class="relative flex items-center justify-center mb-0.5">
+              ${isSelected ? '<span class="absolute -inset-2.5 rounded-full bg-amber-400/30 opacity-75 animate-ping"></span>' : hasMeals ? '<span class="absolute -inset-1.5 rounded-full bg-emerald-400/20 opacity-75 animate-pulse"></span>' : ''}
+              
+              <div class="w-7 h-7 rounded-full flex items-center justify-center border-2 shadow-md transition-all duration-300 ${
+                isSelected
+                  ? 'bg-amber-600 border-white text-white' 
+                  : hasMeals
+                  ? 'bg-emerald-700 border-white text-white'
+                  : 'bg-slate-405 border-slate-300 text-slate-500 opacity-60'
+              }">
+                <svg viewBox="0 0 100 100" class="w-3.5 h-3.5 fill-current stroke-none">
+                  <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
+                </svg>
+              </div>
+            </div>
+            
+            <!-- Permanent High-Contrast Label -->
+            <div class="${isSelected ? 'bg-amber-850 bg-amber-700 text-white border-amber-900 shadow-md ring-2 ring-white' : 'bg-slate-900/95 text-white border-slate-800 shadow'} text-[9.5px] font-bold px-1.5 py-0.5 rounded border text-center whitespace-nowrap max-w-[130px] truncate">
+              ${k.name}
+            </div>
+          </div>
+        `,
+        className: '',
+        iconSize: [140, 100],
+        iconAnchor: [70, 50]
+      });
+
+      const marker = L.marker([k.lat, k.lng], { icon: kitchenIcon });
+      marker.on('click', () => {
+        setSelectedKitchenId(k.id);
+      });
+      marker.addTo(layer);
+    });
+
+    // Draw route line to selected kitchen
+    if (selectedKitchen) {
+      L.polyline([[userCoords.lat, userCoords.lng], [selectedKitchen.lat, selectedKitchen.lng]], {
+        color: '#047857', // Emerald 700
+        weight: 2.5,
+        dashArray: '5, 5',
+        opacity: 0.7
+      }).addTo(layer);
+    }
+  }, [filteredKitchens, selectedKitchenId, userCoords]);
 
   // Try to geolocate the user
   const requestLiveGPS = () => {
@@ -62,43 +249,6 @@ export default function SeekerDashboard({
       { enableHighAccuracy: true, timeout: 5000 }
     );
   };
-
-  // Sync available list with location distance
-  const kitchensWithDistance = kitchens.map(k => {
-    const dist = calculateDistance(userCoords.lat, userCoords.lng, k.lat, k.lng);
-    return { ...k, distanceKm: dist };
-  }).sort((a, b) => a.distanceKm - b.distanceKm);
-
-  // Filter kitchens
-  const filteredKitchens = kitchensWithDistance.filter(k => {
-    if (activeFilter === 'available') return k.sponsoredCount > 0;
-    if (activeFilter === 'nearby') return k.distanceKm < 50; // arbitrary near criteria
-    return true;
-  });
-
-  // Calculate coordinates in the Mock Map container box (width: 320, height: 260)
-  // We want to map latitude & longitude ranges to SVG coordinate bounds (10% to 90% space)
-  const getMapCoordinates = (lat: number, lng: number) => {
-    // Find min/max in current dataset to scale map beautifully
-    const lats = [userCoords.lat, ...kitchens.map(k => k.lat)];
-    const lngs = [userCoords.lng, ...kitchens.map(k => k.lng)];
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
-
-    const latRange = maxLat - minLat || 0.01;
-    const lngRange = maxLng - minLng || 0.01;
-
-    // Output range: x [40, 280], y [40, 220]
-    const x = 40 + ((lng - minLng) / lngRange) * 240;
-    // Note: higher latitude = higher up on screen (lower Y SVG coordinate)
-    const y = 220 - ((lat - minLat) / latRange) * 180;
-
-    return { x, y };
-  };
-
-  const userSvgPos = getMapCoordinates(userCoords.lat, userCoords.lng);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-6xl mx-auto">
@@ -160,136 +310,16 @@ export default function SeekerDashboard({
         <div className="bg-white border border-slate-200/80 p-4 rounded-3xl shadow-sm">
           <div className="flex items-center justify-between mb-3.5">
             <span className="text-xs font-mono font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
               live chorundo? radar map
             </span>
-            <span className="text-[10px] text-slate-400 bg-slate-150 px-2 py-0.5 rounded-full font-mono">
+            <span className="text-[10px] text-slate-400 bg-[#EFECE6] px-2 py-0.5 rounded-full font-mono">
               Scale 1:1 Georeferenced
             </span>
           </div>
 
-          <div className="relative w-full aspect-video md:aspect-[2.2/1] bg-blue-50/10 border border-blue-100/30 rounded-2xl overflow-hidden shadow-inner">
-            {/* SVG Grid & Plantain Leaf Accents back */}
-            <svg viewBox="0 0 320 200" className="w-full h-full absolute inset-0 select-none pointer-events-none">
-              <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(59, 130, 246, 0.05)" strokeWidth="1" />
-              </pattern>
-              <rect width="100%" height="100%" fill="url(#grid)" />
-
-              {/* Plantain leaves drawn in watermarks */}
-              <path d="M-20,180 Q80,150 160,210 Q40,240 -20,180" fill="rgba(16,185,129,0.02)" />
-              <path d="M350,20 Q240,40 180,-30 Q280,-40 350,20" fill="rgba(16,185,129,0.02)" />
-
-              {/* Draw Route Line if a kitchen is selected */}
-              {selectedKitchen && (
-                (() => {
-                  const kitchenPos = getMapCoordinates(selectedKitchen.lat, selectedKitchen.lng);
-                  return (
-                    <>
-                      {/* Dotted path leading to kitchen */}
-                      <motion.path
-                        initial={{ strokeDashoffset: 100 }}
-                        animate={{ strokeDashoffset: 0 }}
-                        transition={{ repeat: Infinity, duration: 15, ease: "linear" }}
-                        d={`M ${userSvgPos.x} ${userSvgPos.y} Q ${(userSvgPos.x + kitchenPos.x) / 2} ${(userSvgPos.y + kitchenPos.y) / 2 - 20} ${kitchenPos.x} ${kitchenPos.y}`}
-                        fill="none"
-                        stroke="#3b82f6"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeDasharray="6,4"
-                      />
-                      {/* Compass range circle */}
-                      <circle
-                        cx={userSvgPos.x}
-                        cy={userSvgPos.y}
-                        r={calculateDistance(userCoords.lat, userCoords.lng, selectedKitchen.lat, selectedKitchen.lng) * 45}
-                        fill="none"
-                        stroke="rgba(59, 130, 246, 0.15)"
-                        strokeWidth="1"
-                        strokeDasharray="2,2"
-                        className="animate-spin"
-                        style={{ transformOrigin: `${userSvgPos.x}px ${userSvgPos.y}px`, animationDuration: '30s' }}
-                      />
-                    </>
-                  );
-                })()
-              )}
-            </svg>
-
-            {/* Render User Node marker on top of SVG */}
-            <div
-              style={{ left: `${(userSvgPos.x / 320) * 100}%`, top: `${(userSvgPos.y / 200) * 100}%` }}
-              className="absolute -translate-x-1/2 -translate-y-1/2 z-25 group cursor-default"
-            >
-              <div className="relative">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-blue-500/40 opacity-75 animate-ping" />
-                <div className="w-6 h-6 bg-blue-600 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold shadow-md">
-                  ★
-                </div>
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-slate-900 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                  Your Spot
-                </div>
-              </div>
-            </div>
-
-            {/* Render Kitchen Pins */}
-            {filteredKitchens.map((k) => {
-              const pos = getMapCoordinates(k.lat, k.lng);
-              const isSelected = selectedKitchenId === k.id;
-              const hasMeals = k.sponsoredCount > 0;
-
-              return (
-                <div
-                  key={k.id}
-                  style={{ left: `${(pos.x / 320) * 100}%`, top: `${(pos.y / 200) * 100}%` }}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 z-20"
-                >
-                  <button
-                    onClick={() => setSelectedKitchenId(k.id)}
-                    className="relative cursor-pointer group focus:outline-none"
-                  >
-                    {/* Visual glowing aura for kitchens with high sponsorships */}
-                    {hasMeals && (
-                      <span className={`absolute -inset-2.5 rounded-full ${isSelected ? 'bg-emerald-300/30' : 'bg-emerald-200/10'} animate-pulse`} />
-                    )}
-
-                    {/* Plantain leaf custom Pin */}
-                    <div
-                      className={`w-9 h-9 rounded-full flex items-center justify-center border-2 shadow-md transition-all duration-300 ${
-                        isSelected
-                          ? 'bg-emerald-600 border-white scale-110 rotate-12 z-30'
-                          : hasMeals
-                          ? 'bg-emerald-50 border-emerald-500 text-emerald-800 hover:border-emerald-700'
-                          : 'bg-slate-100 border-slate-300 text-slate-450 opacity-75'
-                      }`}
-                    >
-                      <svg viewBox="0 0 100 100" className={`w-5 h-5 ${isSelected ? 'fill-white stroke-white' : 'fill-emerald-600 stroke-emerald-600'}`}>
-                        <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
-                      </svg>
-                    </div>
-
-                    {/* Miniature badge count of meals */}
-                    <div
-                      className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-black ${
-                        isSelected
-                          ? 'bg-amber-600 border-white text-white'
-                          : hasMeals
-                          ? 'bg-emerald-500 border-emerald-100 text-white shadow-sm'
-                          : 'bg-slate-400 border-slate-100 text-white'
-                      }`}
-                    >
-                      {k.sponsoredCount}
-                    </div>
-
-                    {/* Text header label in bubble hover tool */}
-                    <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-white border border-slate-200 text-[10px] font-bold text-slate-900 px-2 py-0.5 rounded-lg shadow-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-40 flex items-center gap-1 pointer-events-none">
-                      <span>{k.name}</span>
-                      <span className="text-emerald-600 font-black">({k.sponsoredCount} meals)</span>
-                    </div>
-                  </button>
-                </div>
-              );
-            })}
+          <div className="relative w-full aspect-video md:aspect-[2.2/1] bg-[#EFECE6] border border-slate-350/40 rounded-2xl overflow-hidden shadow-inner z-0">
+            <div ref={mapContainerRef} className="w-full h-full" style={{ height: '100%', minHeight: '260px' }} />
           </div>
         </div>
 
