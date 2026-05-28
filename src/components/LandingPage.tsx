@@ -198,8 +198,22 @@ export default function LandingPage({
             exit={{ opacity: 0 }}
             className="max-w-6xl mx-auto px-4 md:px-6 pt-6"
           >
+            {/* Top Introductory Header Badge */}
+            <div className="text-center py-4 max-w-2xl mx-auto mb-12">
+              <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 text-[10px] font-black tracking-widest uppercase border border-emerald-100 rounded-full px-3 py-1 font-mono mb-3 animate-pulse">
+                <Sparkles className="w-3 h-3 text-emerald-600 fill-emerald-500" />
+                Kerala's Food-Dignity Campaign
+              </span>
+              <h1 className="text-3xl md:text-5xl font-bold font-serif text-slate-800 tracking-tight lowercase leading-none">
+                the warm hospitality of a <span className="text-emerald-700 font-extrabold italic font-serif">heartful</span> meal.
+              </h1>
+              <p className="text-xs md:text-sm text-slate-500 font-sans mt-3 leading-relaxed max-w-xl mx-auto">
+                No complex servers, no commission margins, and absolute athithi privacy. chorundo makes local eateries in Kerala a sanctuary of mutual care.
+              </p>
+            </div>
+
             {/* 2. DYNAMIC LIVE COMPASS MAP CONTAINER */}
-            <div className="mt-4 mb-12">
+            <div className="mt-4 mb-16">
               <CustomLandingMap
                 kitchens={kitchens}
                 isLocked={mapLocked}
@@ -219,20 +233,6 @@ export default function LandingPage({
                 userCoords={userCoords}
                 setUserCoords={setUserCoords}
               />
-            </div>
-
-            {/* Top Introductory Header Badge */}
-            <div className="text-center py-4 max-w-2xl mx-auto mb-16">
-              <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 text-[10px] font-black tracking-widest uppercase border border-emerald-100 rounded-full px-3 py-1 font-mono mb-3 animate-pulse">
-                <Sparkles className="w-3 h-3 text-emerald-600 fill-emerald-500" />
-                Kerala's Food-Dignity Campaign
-              </span>
-              <h1 className="text-3xl md:text-5xl font-bold font-serif text-slate-800 tracking-tight lowercase leading-none">
-                the warm hospitality of a <span className="text-emerald-700 font-extrabold italic font-serif">heartful</span> meal.
-              </h1>
-              <p className="text-xs md:text-sm text-slate-500 font-sans mt-3 leading-relaxed max-w-xl mx-auto">
-                No complex servers, no commission margins, and absolute athithi privacy. chorundo makes local eateries in Kerala a sanctuary of mutual care.
-              </p>
             </div>
 
             {/* SCROLL SECTIONS MARKERS CONTAINER */}

@@ -563,7 +563,7 @@ export default function CustomLandingMap({
               </div>
 
               {/* View Fullscreen Floating Toggler (Bottom-Left) */}
-              <div className="absolute bottom-4 left-4 z-[400] select-none pointer-events-auto">
+              <div className="absolute bottom-8 left-4 z-[400] select-none pointer-events-auto">
                 <button
                   onClick={() => setIsFullscreen(!isFS)}
                   className="bg-white hover:bg-slate-50 active:scale-95 text-slate-800 p-2.5 rounded-2xl shadow-xl border border-slate-200/80 flex items-center justify-center gap-1.5 font-sans font-bold text-[11px] cursor-pointer transition-all uppercase tracking-wider"
@@ -584,7 +584,7 @@ export default function CustomLandingMap({
               </div>
 
               {/* Current GPS Location Floating Toggler (Bottom-Right) */}
-              <div className="absolute bottom-4 right-4 z-[400] select-none pointer-events-auto">
+              <div className="absolute bottom-8 right-4 z-[400] select-none pointer-events-auto">
                 <button
                   onClick={handleGPSDetect}
                   disabled={isLocating}
