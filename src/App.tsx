@@ -37,7 +37,18 @@ export default function App() {
     const savedClaims = localStorage.getItem('chorundo_claims');
 
     if (savedKitchens) {
-      setKitchens(JSON.parse(savedKitchens));
+      try {
+        const parsed = JSON.parse(savedKitchens);
+        if (Array.isArray(parsed) && parsed.length < 50) {
+          setKitchens(INITIAL_KITCHENS);
+          localStorage.setItem('chorundo_kitchens', JSON.stringify(INITIAL_KITCHENS));
+        } else {
+          setKitchens(parsed);
+        }
+      } catch (e) {
+        setKitchens(INITIAL_KITCHENS);
+        localStorage.setItem('chorundo_kitchens', JSON.stringify(INITIAL_KITCHENS));
+      }
     } else {
       setKitchens(INITIAL_KITCHENS);
       localStorage.setItem('chorundo_kitchens', JSON.stringify(INITIAL_KITCHENS));

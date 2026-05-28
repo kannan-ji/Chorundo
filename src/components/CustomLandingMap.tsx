@@ -81,7 +81,7 @@ export default function CustomLandingMap({
       if (nearKitchens.length > 0) {
         setAlertMsg(null);
       } else {
-        setAlertMsg(`No active meal spots found within ${radiusKm}km of your coordinates. You can select an Aluva/Kochi preset from the dropdown below to instantly simulate nearby spaces!`);
+        setAlertMsg(`No active meal spots found within ${radiusKm}km of your coordinates. You can adjust the radius below to scan a wider area!`);
       }
     }
   }, [userCoords, radiusKm, isLocked]);
@@ -316,52 +316,6 @@ export default function CustomLandingMap({
           </motion.div>
         </div>
       )}
-
-      {/* 2. REAL INTERACTIVE OPENSTREET MAP HEADERS */}
-      <div className="bg-white border-b border-slate-200/60 p-3.5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 relative z-10">
-        <div className="flex items-center gap-2">
-          <div className="w-3.5 h-3.5 bg-emerald-100 border border-emerald-500 rounded-full flex items-center justify-center">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-          </div>
-          <span className="text-xs font-mono font-black text-slate-500 uppercase tracking-wider">
-            chorundo? Radar active (OpenStreetMap)
-          </span>
-        </div>
-
-        {/* Action Widgets */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Preset Selector */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">Location Preset:</span>
-            <select
-              value={presets.find(p => Math.abs(p.lat - userCoords.lat) < 0.005)?.name || 'Custom'}
-              onChange={(e) => {
-                const found = presets.find(p => p.name === e.target.value);
-                if (found) {
-                  setUserCoords({ lat: found.lat, lng: found.lng });
-                  setAlertMsg(null);
-                }
-              }}
-              className="text-xs bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 font-sans font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            >
-              {presets.map(p => (
-                <option key={p.name} value={p.name}>{p.name}</option>
-              ))}
-              <option value="Custom" disabled>Manual / GPS location</option>
-            </select>
-          </div>
-
-          <button
-            onClick={handleGPSDetect}
-            disabled={isLocating}
-            className="bg-emerald-50 hover:bg-emerald-100/80 active:scale-95 text-emerald-800 border border-emerald-200/50 rounded-lg px-2.5 py-1 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
-          >
-            <Navigation className={`w-3 h-3 ${isLocating ? 'animate-spin' : ''}`} />
-            {isLocating ? 'GPS...' : 'My Location'}
-          </button>
-        </div>
-      </div>
-
       {/* 3. LEAFLET CONTAINER CANVAS */}
       <div className="relative w-full overflow-hidden bg-[#EFECE6] z-0" style={{ height: '420px' }}>
         <div 
@@ -385,7 +339,7 @@ export default function CustomLandingMap({
                 </span>
               ) : (
                 <span className="text-amber-800 font-medium">
-                  We found 0 meal spots within 1km. Explore Kerala presets above to simulate active junctions!
+                  We found 0 meal spots within 1km of this location. Try choosing a larger radius below to scan wider!
                 </span>
               )}
             </p>

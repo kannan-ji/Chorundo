@@ -36,6 +36,9 @@ export default function SeekerDashboard({
   const userCircleRef = useRef<L.Circle | null>(null);
   const kitchensLayerRef = useRef<L.LayerGroup | null>(null);
 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [displayCount, setDisplayCount] = useState(12);
+
   useEffect(() => {
     if (initialKitchenId) {
       setSelectedKitchenId(initialKitchenId);
@@ -50,12 +53,21 @@ export default function SeekerDashboard({
     return { ...k, distanceKm: dist };
   }).sort((a, b) => a.distanceKm - b.distanceKm);
 
-  // Filter kitchens
+  // Filter kitchens with Search
   const filteredKitchens = kitchensWithDistance.filter(k => {
-    if (activeFilter === 'available') return k.sponsoredCount > 0;
-    if (activeFilter === 'nearby') return k.distanceKm < 50; // arbitrary near criteria
-    return true;
+    const matchesFilter = activeFilter === 'available' ? k.sponsoredCount > 0 : (activeFilter === 'nearby' ? k.distanceKm < 50 : true);
+    const matchesSearch = k.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          k.cuisine.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          k.address.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesFilter && matchesSearch;
   });
+
+  const displayedKitchens = filteredKitchens.slice(0, displayCount);
+
+  // Reset display count when query shifts to find matches comfortably
+  useEffect(() => {
+    setDisplayCount(12);
+  }, [activeFilter, searchTerm]);
 
   // Initialize Map
   useEffect(() => {
@@ -322,49 +334,99 @@ export default function SeekerDashboard({
             <div ref={mapContainerRef} className="w-full h-full" style={{ height: '100%', minHeight: '260px' }} />
           </div>
         </div>
+        {/* Search input and status */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200/80 p-4 rounded-3xl shadow-sm">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder="Search by kitchen name, landmark, or cuisine..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 pl-10 text-xs font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5">
+              <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3.5 top-2.5 text-slate-400 hover:text-slate-650 font-bold text-xs cursor-pointer bg-transparent border-0"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-505 font-mono font-bold shrink-0 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+            Found <span className="text-emerald-700 font-black">{filteredKitchens.length}</span> / <span className="text-slate-501 font-semibold">{kitchens.length}</span> partners
+          </p>
+        </div>
 
         {/* Kitchen cards table/deck */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          {filteredKitchens.map((k) => {
-            const isSelected = selectedKitchenId === k.id;
-            const hasMeals = k.sponsoredCount > 0;
+        {displayedKitchens.length === 0 ? (
+          <div className="bg-white border border-slate-200 p-8 rounded-3xl text-center text-slate-501">
+            <p className="text-sm font-semibold">No partner kitchens match your active filters or text search.</p>
+            <button
+              onClick={() => { setSearchTerm(''); setActiveFilter('all'); }}
+              className="mt-3 text-xs font-bold text-blue-600 hover:underline cursor-pointer"
+            >
+              Reset all active search queries
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {displayedKitchens.map((k) => {
+              const isSelected = selectedKitchenId === k.id;
+              const hasMeals = k.sponsoredCount > 0;
 
-            return (
-              <div
-                key={k.id}
-                onClick={() => setSelectedKitchenId(k.id)}
-                className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                  isSelected
-                    ? 'border-emerald-600 bg-emerald-50/30'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-1.5 mb-1.5">
-                    <span className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-widest">
-                      {k.distanceKm.toFixed(2)} km away
-                    </span>
-                    <span
-                      className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                        hasMeals ? 'bg-emerald-100 text-emerald-800' : 'bg-red-50 text-red-700 font-bold'
-                      }`}
-                    >
-                      {hasMeals ? `${k.sponsoredCount} meals sponsored` : '0 meals sponsored'}
-                    </span>
+              return (
+                <div
+                  key={k.id}
+                  onClick={() => setSelectedKitchenId(k.id)}
+                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                    isSelected
+                      ? 'border-emerald-600 bg-emerald-50/30'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                      <span className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-widest">
+                        {k.distanceKm.toFixed(2)} km away
+                      </span>
+                      <span
+                        className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                          hasMeals ? 'bg-emerald-100 text-emerald-800' : 'bg-red-50 text-red-700 font-bold'
+                        }`}
+                      >
+                        {hasMeals ? `${k.sponsoredCount} meals sponsored` : '0 meals sponsored'}
+                      </span>
+                    </div>
+
+                    <h3 className="font-bold text-sm text-slate-900 line-clamp-1">{k.name}</h3>
+                    <p className="text-xs text-slate-505 line-clamp-1 mt-0.5">{k.address}</p>
                   </div>
 
-                  <h3 className="font-bold text-sm text-slate-900 line-clamp-1">{k.name}</h3>
-                  <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{k.address}</p>
+                  <div className="flex items-center justify-between border-t border-slate-100 mt-3 pt-2">
+                    <span className="text-[11px] text-slate-500 font-semibold">{k.cuisine}</span>
+                    <span className="text-[11px] text-amber-500 font-black">★ {k.rating}</span>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+        )}
 
-                <div className="flex items-center justify-between border-t border-slate-100 mt-3 pt-2">
-                  <span className="text-[11px] text-slate-500 font-semibold">{k.cuisine}</span>
-                  <span className="text-[11px] text-amber-500 font-black">★ {k.rating}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        {/* Show More Pagination control */}
+        {filteredKitchens.length > displayCount && (
+          <div className="flex justify-center pt-1">
+            <button
+              onClick={() => setDisplayCount(prev => prev + 12)}
+              className="bg-white hover:bg-slate-50 active:scale-97 border border-slate-200 rounded-2xl px-6 py-3 text-xs font-bold text-slate-700 shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 w-full"
+            >
+              Show More Partner Kitchens (+{filteredKitchens.length - displayCount} remaining)
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 2. SPECIFIC KITCHEN & CLAIM (Right Column: 5 Units) */}
