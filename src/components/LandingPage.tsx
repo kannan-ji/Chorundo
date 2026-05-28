@@ -578,14 +578,16 @@ export default function LandingPage({
       <footer className="mt-16 py-12 border-t border-slate-200 bg-slate-50/50">
         <div className="max-w-6xl mx-auto px-4 text-center space-y-6">
           <div className="flex items-center justify-center gap-2">
-            <div className="w-6 h-6 bg-emerald-700 rounded-lg flex items-center justify-center p-0.5">
-              <svg viewBox="0 0 100 100" className="w-4.5 h-4.5 fill-white">
+            <div className="w-8 h-8 bg-emerald-700 rounded-xl flex items-center justify-center p-0.5 shadow-md shadow-emerald-250">
+              <svg viewBox="0 0 100 100" className="w-6 h-6 fill-white">
                 <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
               </svg>
             </div>
-            <span className="text-sm font-extrabold tracking-tight text-emerald-950 font-serif lowercase">
-              chorundo?
-            </span>
+            <div className="flex items-center">
+              <span className="text-xl font-extrabold tracking-tight text-emerald-950 font-serif lowercase leading-none block">
+                chorundo?
+              </span>
+            </div>
           </div>
 
           <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
