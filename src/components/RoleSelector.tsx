@@ -38,6 +38,9 @@ export default function RoleSelector({ currentRole, onRoleChange, seekerCodeCoun
     },
   ];
 
+  const activeRole = roles.find((r) => r.id === currentRole) || roles[0];
+  const ActiveIcon = activeRole.icon;
+
   return (
     <div className="w-full bg-slate-50 border border-slate-200/80 p-4 rounded-3xl mb-6">
       <div className="max-w-6xl mx-auto">
@@ -52,56 +55,51 @@ export default function RoleSelector({ currentRole, onRoleChange, seekerCodeCoun
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {roles.map((role) => {
-            const Icon = role.icon;
-            const isActive = currentRole === role.id;
-
-            return (
-              <button
-                key={role.id}
-                id={`role-btn-${role.id}`}
-                onClick={() => onRoleChange(role.id)}
-                className={`text-left p-3 rounded-2xl border-2 transition-all duration-300 flex items-start gap-3 cursor-pointer group ${
-                  isActive
-                    ? `${role.activeColor} border-transparent scale-[1.02]`
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
-                }`}
+        <div className="flex flex-col md:flex-row gap-4 bg-white border border-slate-200/60 p-4 rounded-2xl">
+          <div className="flex-1">
+            <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+              Current Simulator Role
+            </label>
+            <div className="relative">
+              <select
+                id="role-simulator-dropdown"
+                value={currentRole}
+                onChange={(e) => onRoleChange(e.target.value as Role)}
+                className="w-full appearance-none bg-slate-50 border-2 border-slate-200 hover:border-slate-300 focus:border-emerald-600 focus:bg-white rounded-xl pl-11 pr-10 py-2.5 text-sm font-bold text-slate-800 focus:outline-none transition-all cursor-pointer"
               >
-                <div
-                  className={`p-2 rounded-xl transition-colors ${
-                    isActive ? 'bg-white/20' : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                </div>
+                {roles.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.label} {role.badge ? `(${role.badge})` : ''}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600">
+                <ActiveIcon className="w-5 h-5" />
+              </div>
+              <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">
+                ▼
+              </div>
+            </div>
+          </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-bold text-sm tracking-tight">{role.label}</span>
-                    {role.badge && (
-                      <span
-                        className={`text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full ${
-                          isActive
-                            ? 'bg-white/30 text-white'
-                            : role.id === 'seeker'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : role.id === 'donor'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-emerald-100 text-emerald-800'
-                        }`}
-                      >
-                        {role.badge}
-                      </span>
-                    )}
-                  </div>
-                  <p className={`text-[11px] mt-0.5 leading-normal ${isActive ? 'text-white/80' : 'text-slate-500'}`}>
-                    {role.descr}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
+          <div className="flex-1 border-t md:border-t-0 md:border-l border-slate-150 pt-3 md:pt-0 md:pl-5 flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700 font-semibold shrink-0">
+              <ActiveIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm tracking-tight text-slate-900">{activeRole.label} Simulator</span>
+                {activeRole.badge && (
+                  <span className="text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                    {activeRole.badge}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 leading-normal mt-1">
+                {activeRole.descr}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

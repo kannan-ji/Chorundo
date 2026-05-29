@@ -133,7 +133,7 @@ export default function App() {
   };
 
   // Athithi flow: Generate and claim voucher code
-  const handleCreateClaim = (kitchenId: string) => {
+  const handleCreateClaim = (kitchenId: string, seekerName?: string) => {
     // 0. Limit to strictly only one pending ticket at a time
     const hasActivePending = claims.some((c) => c.status === 'pending');
     if (hasActivePending) return;
@@ -154,6 +154,7 @@ export default function App() {
       status: 'pending',
       timestamp: new Date().toISOString(),
       isWalkIn: false,
+      seekerName: seekerName || 'Athithi',
     };
 
     // 3. Update kitchen sponsored count table
@@ -386,6 +387,7 @@ export default function App() {
                         claims={claims.filter((c) => c.status === 'pending')}
                         onCreateClaim={handleCreateClaim}
                         onCancelClaim={handleCancelClaim}
+                        onBackToHome={() => { window.location.hash = ''; setCurrentView('landing'); }}
                       />
                     )}
 
@@ -394,6 +396,8 @@ export default function App() {
                         kitchens={kitchens}
                         donations={donations}
                         onSponsorMeals={handleSponsorMeals}
+                        onBackToHome={() => { window.location.hash = ''; setCurrentView('landing'); }}
+                        donorName="Playground Sponsor"
                       />
                     )}
 
@@ -403,6 +407,9 @@ export default function App() {
                         claims={claims}
                         onRedeemCode={handleRedeemCode}
                         onLogWalkIn={handleLogWalkIn}
+                        initialKitchenId={activeKitchenId}
+                        onBackToHome={() => { window.location.hash = ''; setCurrentView('landing'); }}
+                        activeKitchenName={kitchens.find(k => k.id === activeKitchenId)?.name || 'Playground Kitchen Partner'}
                       />
                     )}
                   </motion.div>
@@ -430,31 +437,13 @@ export default function App() {
           {/* 3. AUTHENTICATED SEEKER/GUEST */}
           {currentView === 'guest-dashboard' && (
             <div className="max-w-6xl mx-auto px-4 md:px-6 pt-6 pb-16">
-              <div className="mb-6 flex flex-col sm:flex-row items-center justify-between bg-emerald-50 border border-emerald-100 p-4 rounded-3xl gap-3">
-                <div className="flex items-center gap-2">
-                  <UserCheck className="w-5 h-5 text-emerald-700" />
-                  <div>
-                    <h4 className="text-xs font-bold text-emerald-950">Anonymously Connected Athithi</h4>
-                    <p className="text-[10px] text-emerald-800 font-medium mt-0.5">
-                      Nickname: <span className="font-bold">{loggedInUser || 'Athithi'}</span> • Absolute digital trace integrity preserved.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="bg-white hover:bg-red-50 text-red-600 border border-slate-200 hover:border-red-200 font-bold text-xs px-4 py-2 rounded-2xl transition-all shadow-sm cursor-pointer whitespace-nowrap self-end sm:self-auto flex items-center gap-1.5"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  Logout / Exit
-                </button>
-              </div>
-
               <SeekerDashboard
                 kitchens={kitchens}
                 claims={claims.filter((c) => c.status === 'pending')}
                 onCreateClaim={handleCreateClaim}
                 onCancelClaim={handleCancelClaim}
                 initialKitchenId={activeKitchenId}
+                onBackToHome={handleLogout}
               />
             </div>
           )}
@@ -462,29 +451,12 @@ export default function App() {
           {/* 4. AUTHENTICATED SPONSOR/DONOR */}
           {currentView === 'donor-dashboard' && (
             <div className="max-w-6xl mx-auto px-4 md:px-6 pt-6 pb-16">
-              <div className="mb-6 flex flex-col sm:flex-row items-center justify-between bg-amber-50 border border-amber-100 p-4 rounded-3xl gap-3">
-                <div className="flex items-center gap-2">
-                  <Heart className="w-5 h-5 text-amber-600 fill-amber-500" />
-                  <div>
-                    <h4 className="text-xs font-bold text-amber-950">chorundo? Authenticated Sponsor Portal</h4>
-                    <p className="text-[10px] text-amber-800 font-medium mt-0.5">
-                      Logged in as: <span className="font-bold">{loggedInUser || 'Donor'}</span> • Supporting local family eateries.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="bg-white hover:bg-amber-100/50 text-amber-900 border border-amber-200 font-bold text-xs px-4 py-2 rounded-2xl transition-all shadow-sm cursor-pointer whitespace-nowrap self-end sm:self-auto flex items-center gap-1.5"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  Logout / Close
-                </button>
-              </div>
-
               <DonorDashboard
                 kitchens={kitchens}
                 donations={donations}
                 onSponsorMeals={handleSponsorMeals}
+                onBackToHome={handleLogout}
+                donorName={loggedInUser || 'Sponsor Partner'}
               />
             </div>
           )}
@@ -492,33 +464,14 @@ export default function App() {
           {/* 5. AUTHENTICATED PARTNER KITCHEN */}
           {currentView === 'kitchen-dashboard' && (
             <div className="max-w-6xl mx-auto px-4 md:px-6 pt-6 pb-16">
-              <div className="mb-6 flex flex-col sm:flex-row items-center justify-between bg-teal-50 border border-teal-100/80 p-4 rounded-3xl gap-3">
-                <div className="flex items-center gap-2">
-                  <Building className="w-5 h-5 text-teal-700" />
-                  <div>
-                    <h4 className="text-xs font-bold text-teal-950">Authenticated Kitchen staff Terminal</h4>
-                    <p className="text-[10px] text-teal-800 font-medium mt-0.5">
-                      Active Kitchen: <span className="font-bold">
-                        {kitchens.find(k => k.id === activeKitchenId)?.name || 'Partner Kitchen'}
-                      </span> • Verified staff token session.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="bg-white hover:bg-teal-100/50 text-teal-900 border border-teal-200/60 font-bold text-xs px-4 py-2 rounded-2xl transition-all shadow-sm cursor-pointer whitespace-nowrap self-end sm:self-auto flex items-center gap-1.5"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  Logout / Lock Counter
-                </button>
-              </div>
-
               <KitchenDashboard
                 kitchens={kitchens}
                 claims={claims}
                 onRedeemCode={handleRedeemCode}
                 onLogWalkIn={handleLogWalkIn}
                 initialKitchenId={activeKitchenId}
+                onBackToHome={handleLogout}
+                activeKitchenName={kitchens.find(k => k.id === activeKitchenId)?.name || 'Partner Kitchen'}
               />
             </div>
           )}

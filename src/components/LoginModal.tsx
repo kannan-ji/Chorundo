@@ -44,7 +44,17 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, initialRol
       } else if (activeTab === 'kitchen') {
         randomName = 'Authorized Chef Staff';
       } else {
-        randomName = 'Atithi Friend';
+        const todayStr = new Date().toISOString().split('T')[0];
+        const storedDate = localStorage.getItem('chorundo_seeker_date');
+        const storedUsername = localStorage.getItem('chorundo_seeker_username');
+        if (storedDate === todayStr && storedUsername) {
+          randomName = storedUsername;
+        } else {
+          const randomNum = Math.floor(100000 + Math.random() * 900000);
+          randomName = `athithi-${randomNum}`;
+          localStorage.setItem('chorundo_seeker_date', todayStr);
+          localStorage.setItem('chorundo_seeker_username', randomName);
+        }
       }
       onLoginSuccess(activeTab, randomName);
       onClose();
@@ -53,7 +63,26 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, initialRol
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const displayName = name.trim() || (activeTab === 'guest' ? 'Honorary Athithi' : activeTab === 'donor' ? 'Anonymous Donor' : 'Kitchen Staff');
+    let displayName = name.trim();
+    if (!displayName) {
+      if (activeTab === 'guest') {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const storedDate = localStorage.getItem('chorundo_seeker_date');
+        const storedUsername = localStorage.getItem('chorundo_seeker_username');
+        if (storedDate === todayStr && storedUsername) {
+          displayName = storedUsername;
+        } else {
+          const randomNum = Math.floor(100000 + Math.random() * 900000);
+          displayName = `athithi-${randomNum}`;
+          localStorage.setItem('chorundo_seeker_date', todayStr);
+          localStorage.setItem('chorundo_seeker_username', displayName);
+        }
+      } else if (activeTab === 'donor') {
+        displayName = 'Anonymous Donor';
+      } else {
+        displayName = 'Kitchen Staff';
+      }
+    }
     
     // Simulate successful login/registration
     if (activeTab === 'kitchen') {

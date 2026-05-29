@@ -34,6 +34,7 @@ export default function LandingPage({
   const [contactSuccess, setContactSuccess] = useState(false);
 
   // References for scrolling smoothly to sections
+  const refHero = useRef<HTMLDivElement>(null);
   const refGuest = useRef<HTMLDivElement>(null);
   const refDonor = useRef<HTMLDivElement>(null);
   const refKitchen = useRef<HTMLDivElement>(null);
@@ -41,9 +42,13 @@ export default function LandingPage({
   const refContact = useRef<HTMLDivElement>(null);
 
   const handleScrollTo = (ref: React.RefObject<HTMLDivElement | null>) => {
-    if (ref && ref.current) {
-      ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    // Delay ensures that if the mobile menu is closing or activeDetail is switching/rendering,
+    // the layout stabilizes before scrolling. This prevents the browser from canceling the smooth scroll.
+    setTimeout(() => {
+      if (ref && ref.current) {
+        ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 150);
   };
 
   const handleContactSubmit = (e: React.FormEvent) => {
@@ -80,11 +85,12 @@ export default function LandingPage({
 
           {/* Nav Links */}
           <div className="hidden md:flex items-center gap-6 text-xs font-bold text-slate-650 tracking-wide uppercase">
+            <button onClick={() => { setActiveDetail(null); handleScrollTo(refHero); }} className="hover:text-emerald-700 cursor-pointer transition-colors bg-transparent border-0 p-0 outline-none leading-none">Home</button>
             <button onClick={() => { setActiveDetail(null); handleScrollTo(refGuest); }} className="hover:text-emerald-700 cursor-pointer transition-colors bg-transparent border-0 p-0 outline-none leading-none">Athithi</button>
             <button onClick={() => { setActiveDetail(null); handleScrollTo(refDonor); }} className="hover:text-emerald-700 cursor-pointer transition-colors bg-transparent border-0 p-0 outline-none leading-none">Donor</button>
             <button onClick={() => { setActiveDetail(null); handleScrollTo(refKitchen); }} className="hover:text-emerald-700 cursor-pointer transition-colors bg-transparent border-0 p-0 outline-none leading-none">Partner Kitchen</button>
-            <button onClick={() => { setActiveDetail(null); handleScrollTo(refAbout); }} className="hover:text-emerald-700 cursor-pointer transition-colors bg-transparent border-0 p-0 outline-none leading-none">About Story</button>
-            <button onClick={() => { setActiveDetail(null); handleScrollTo(refContact); }} className="hover:text-emerald-700 cursor-pointer transition-colors bg-transparent border-0 p-0 outline-none leading-none">Contact US</button>
+            <button onClick={() => { setActiveDetail(null); handleScrollTo(refAbout); }} className="hover:text-emerald-700 cursor-pointer transition-colors bg-transparent border-0 p-0 outline-none leading-none">Our Story</button>
+            <button onClick={() => { setActiveDetail(null); handleScrollTo(refContact); }} className="hover:text-emerald-700 cursor-pointer transition-colors bg-transparent border-0 p-0 outline-none leading-none">Contact Us</button>
           </div>
 
           {/* Action CTAs & Mobile Toggle */}
@@ -126,6 +132,12 @@ export default function LandingPage({
             >
               <div className="p-6 space-y-4 flex flex-col items-start translate-y-0">
                 <button 
+                  onClick={() => { setActiveDetail(null); handleScrollTo(refHero); setIsMenuOpen(false); }} 
+                  className="w-full text-left text-sm font-bold text-slate-700 uppercase tracking-widest py-2 active:text-emerald-700"
+                >
+                  Home
+                </button>
+                <button 
                   onClick={() => { setActiveDetail(null); handleScrollTo(refGuest); setIsMenuOpen(false); }} 
                   className="w-full text-left text-sm font-bold text-slate-700 uppercase tracking-widest py-2 active:text-emerald-700"
                 >
@@ -147,13 +159,13 @@ export default function LandingPage({
                   onClick={() => { setActiveDetail(null); handleScrollTo(refAbout); setIsMenuOpen(false); }} 
                   className="w-full text-left text-sm font-bold text-slate-700 uppercase tracking-widest py-2 active:text-emerald-700"
                 >
-                  About Story
+                  Our Story
                 </button>
                 <button 
                   onClick={() => { setActiveDetail(null); handleScrollTo(refContact); setIsMenuOpen(false); }} 
                   className="w-full text-left text-sm font-bold text-slate-700 uppercase tracking-widest py-2 active:text-emerald-700"
                 >
-                  Contact US
+                  Contact Us
                 </button>
                 
                 <div className="pt-4 border-t border-slate-100 w-full grid grid-cols-2 gap-3">
@@ -193,10 +205,11 @@ export default function LandingPage({
           </div>
         ) : (
           <motion.div
+            ref={refHero}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="max-w-6xl mx-auto px-4 md:px-6 pt-6"
+            className="max-w-6xl mx-auto px-4 md:px-6 pt-6 scroll-mt-24"
           >
             {/* Top Introductory Header Badge */}
             <div className="text-center py-4 max-w-2xl mx-auto mb-12">
@@ -451,7 +464,7 @@ export default function LandingPage({
                     </p>
                   </div>
                   
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 text-left font-mono">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 text-left font-mono w-full">
                     <div className="bg-white border border-slate-150 p-4 rounded-2xl">
                       <span className="block text-2xl font-serif font-black text-emerald-800">100%</span>
                       <span className="text-[10px] text-slate-400 uppercase tracking-widest block mt-1 font-bold">to eateries</span>

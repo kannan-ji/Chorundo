@@ -34,6 +34,7 @@ export interface MealClaim {
   timestamp: string;
   claimedAt?: string;
   isWalkIn: boolean; // true if guest didn't have phone, logged manually by kitchen
+  seekerName?: string; // Random bookkeeping nickname for daily reset logs
 }
 
 export type Role = 'seeker' | 'donor' | 'kitchen';

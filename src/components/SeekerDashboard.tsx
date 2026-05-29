@@ -1,6 +1,28 @@
-import { Compass, Info, MapPin, Navigation, Phone, RotateCcw, ShieldCheck, Ticket } from 'lucide-react';
-import { motion } from 'motion/react';
-import { useEffect, useState, useRef } from 'react';
+import { 
+  Compass, 
+  Info, 
+  MapPin, 
+  Navigation, 
+  Phone, 
+  RotateCcw, 
+  ShieldCheck, 
+  Ticket, 
+  Maximize, 
+  Minimize, 
+  ChevronDown, 
+  Check, 
+  Sparkles, 
+  AlertCircle, 
+  X, 
+  Search, 
+  Star, 
+  Utensils, 
+  ArrowLeft,
+  Smartphone,
+  ChevronRight
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { calculateDistance } from '../data';
 import { Kitchen, MealClaim } from '../types';
 import L from 'leaflet';
@@ -8,9 +30,10 @@ import L from 'leaflet';
 interface SeekerDashboardProps {
   kitchens: Kitchen[];
   claims: MealClaim[];
-  onCreateClaim: (kitchenId: string) => void;
+  onCreateClaim: (kitchenId: string, seekerName?: string) => void;
   onCancelClaim: (claimId: string) => void;
   initialKitchenId?: string | null;
+  onBackToHome?: () => void;
 }
 
 export default function SeekerDashboard({
@@ -19,106 +42,223 @@ export default function SeekerDashboard({
   onCreateClaim,
   onCancelClaim,
   initialKitchenId = null,
+  onBackToHome,
 }: SeekerDashboardProps) {
+  // Generate daily unique seeker username for absolute anonymity
+  const [seekerUsername] = useState<string>(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const storedDate = localStorage.getItem('chorundo_seeker_date');
+    const storedUsername = localStorage.getItem('chorundo_seeker_username');
+    
+    if (storedDate === todayStr && storedUsername) {
+      return storedUsername;
+    } else {
+      const randomNum = Math.floor(100000 + Math.random() * 900000);
+      const generated = `athithi-${randomNum}`;
+      localStorage.setItem('chorundo_seeker_date', todayStr);
+      localStorage.setItem('chorundo_seeker_username', generated);
+      return generated;
+    }
+  });
+
   // User's default or simulated GPS
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number }>({
     lat: 10.1064,
     lng: 76.3534, // Default Aluva/Kochi Metro coordinates
   });
+  
   const [isLoadingGPS, setIsLoadingGPS] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
+  
+  // Selection and filter rules
   const [selectedKitchenId, setSelectedKitchenId] = useState<string | null>(initialKitchenId || kitchens[0]?.id || null);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'available' | 'nearby'>('all');
+  const [pinnedKitchenId, setPinnedKitchenId] = useState<string | null>(initialKitchenId || null);
+  
+  // Responsive / Map parameters
+  const [isMapFullscreen, setIsMapFullscreen] = useState(false);
+  const [mobileViewTab, setMobileViewTab] = useState<'list' | 'map'>('list');
+  const [isTokenDrawerOpen, setIsTokenDrawerOpen] = useState(false);
+  
+  // Confetti / Booking animation state
+  const [bookingEateryId, setBookingEateryId] = useState<string | null>(null);
+  const [bookingSuccessId, setBookingSuccessId] = useState<string | null>(null);
 
-  const mapContainerRef = useRef<HTMLDivElement>(null);
+  // Map elements Reference
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const userCircleRef = useRef<L.Circle | null>(null);
   const kitchensLayerRef = useRef<L.LayerGroup | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [displayCount, setDisplayCount] = useState(12);
+  const [displayCount, setDisplayCount] = useState(15);
+  const listContainerRef = useRef<HTMLDivElement | null>(null);
 
+  // Sync initial Kitchen selection
   useEffect(() => {
     if (initialKitchenId) {
       setSelectedKitchenId(initialKitchenId);
+      setPinnedKitchenId(initialKitchenId);
+      // Automatically focus / expand it in our list
+      const matches = kitchens.find(k => k.id === initialKitchenId);
+      if (matches && mapInstanceRef.current && mapReady) {
+        mapInstanceRef.current.setView([matches.lat, matches.lng], 14);
+      }
     }
-  }, [initialKitchenId]);
+  }, [initialKitchenId, mapReady, kitchens]);
+
+  // Handle body scrolling lock when fullscreen or slideout drawer is active
+  useEffect(() => {
+    if (isMapFullscreen || isTokenDrawerOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMapFullscreen, isTokenDrawerOpen]);
+
+  // Redraw map on sizing shift
+  useEffect(() => {
+    if (mapInstanceRef.current) {
+      setTimeout(() => {
+        mapInstanceRef.current?.invalidateSize();
+      }, 100);
+      setTimeout(() => {
+        mapInstanceRef.current?.invalidateSize();
+      }, 350);
+    }
+  }, [isMapFullscreen, mobileViewTab]);
 
   const selectedKitchen = kitchens.find(k => k.id === selectedKitchenId) || kitchens[0];
 
-  // Sync available list with location distance
+  // Map & Distance calculation setup
   const kitchensWithDistance = kitchens.map(k => {
     const dist = calculateDistance(userCoords.lat, userCoords.lng, k.lat, k.lng);
     return { ...k, distanceKm: dist };
   }).sort((a, b) => a.distanceKm - b.distanceKm);
 
-  // Filter kitchens with Search
+  // Search filter
   const filteredKitchens = kitchensWithDistance.filter(k => {
-    const matchesFilter = activeFilter === 'available' ? k.sponsoredCount > 0 : (activeFilter === 'nearby' ? k.distanceKm < 50 : true);
-    const matchesSearch = k.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          k.cuisine.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          k.address.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesFilter && matchesSearch;
+    const matchesSearch = 
+      k.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      k.cuisine.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      k.address.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
   });
 
-  const displayedKitchens = filteredKitchens.slice(0, displayCount);
-
-  // Reset display count when query shifts to find matches comfortably
-  useEffect(() => {
-    setDisplayCount(12);
-  }, [activeFilter, searchTerm]);
-
-  // Initialize Map
-  useEffect(() => {
-    if (!mapContainerRef.current) return;
-
-    if (!mapInstanceRef.current) {
-      const map = L.map(mapContainerRef.current, {
-        zoomControl: false,
-        attributionControl: false,
-      }).setView([userCoords.lat, userCoords.lng], 14);
-
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-      }).addTo(map);
-
-      // Attribution control scale at bottom-right
-      L.control.attribution({
-        position: 'bottomleft',
-        prefix: 'Chorundo? | © OpenStreetMap'
-      }).addTo(map);
-
-      L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map);
-
-      mapInstanceRef.current = map;
-      kitchensLayerRef.current = L.layerGroup().addTo(map);
-
-      // Multi-phase size invalidations to handle parent entry animations and CSS loading
-      map.invalidateSize();
-      setTimeout(() => map.invalidateSize(), 50);
-      setTimeout(() => map.invalidateSize(), 150);
-      setTimeout(() => map.invalidateSize(), 300);
-      setTimeout(() => map.invalidateSize(), 600);
-      setTimeout(() => map.invalidateSize(), 1200);
-      setTimeout(() => map.invalidateSize(), 2400);
+  // Pin selected kitchen to the absolute top of the list if selected from map
+  const orderedKitchens = [...filteredKitchens];
+  if (pinnedKitchenId) {
+    const pinnedIdx = orderedKitchens.findIndex(k => k.id === pinnedKitchenId);
+    if (pinnedIdx > 0) {
+      const [pinnedItem] = orderedKitchens.splice(pinnedIdx, 1);
+      orderedKitchens.unshift(pinnedItem);
     }
+  }
 
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-        kitchensLayerRef.current = null;
-        userMarkerRef.current = null;
-        userCircleRef.current = null;
+  const displayedKitchens = orderedKitchens.slice(0, displayCount);
+
+  // Automatically expand list and scroll to selected eatery when selection changes
+  useEffect(() => {
+    if (!selectedKitchenId) return;
+
+    const index = orderedKitchens.findIndex(k => k.id === selectedKitchenId);
+    if (index !== -1) {
+      let isPaginationUpdated = false;
+      if (index >= displayCount) {
+        setDisplayCount(index + 1);
+        isPaginationUpdated = true;
       }
+
+      const scrollTimeout = setTimeout(() => {
+        const element = document.getElementById(`seeker-eatery-card-${selectedKitchenId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, isPaginationUpdated ? 300 : 100);
+
+      return () => clearTimeout(scrollTimeout);
+    }
+  }, [selectedKitchenId, orderedKitchens, displayCount]);
+
+  // Reset display pages when toggling search
+  useEffect(() => {
+    setDisplayCount(15);
+    if (listContainerRef.current) {
+      listContainerRef.current.scrollTop = 0;
+    }
+  }, [searchTerm]);
+
+  // Teardown Leaflet instance safely
+  const cleanupMap = () => {
+    if (mapInstanceRef.current) {
+      try {
+        mapInstanceRef.current.remove();
+      } catch (err) {
+        console.warn("Chorundo seeker map destruction handled gracefully:", err);
+      }
+      mapInstanceRef.current = null;
+    }
+    kitchensLayerRef.current = null;
+    userMarkerRef.current = null;
+    userCircleRef.current = null;
+    setMapReady(false);
+  };
+
+  // Safe Map instantiation
+  const initMap = (container: HTMLDivElement) => {
+    if (mapInstanceRef.current) return;
+
+    const map = L.map(container, {
+      zoomControl: false,
+      attributionControl: false,
+    }).setView([userCoords.lat, userCoords.lng], 14);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+    }).addTo(map);
+
+    L.control.attribution({
+      position: 'bottomleft',
+      prefix: 'Chorundo? | © OpenStreetMap'
+    }).addTo(map);
+
+    L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map);
+
+    mapInstanceRef.current = map;
+    kitchensLayerRef.current = L.layerGroup().addTo(map);
+    setMapReady(true);
+
+    // Multi-phase invalidating passes to layout
+    map.invalidateSize();
+    setTimeout(() => { if (mapInstanceRef.current === map) map.invalidateSize(); }, 80);
+    setTimeout(() => { if (mapInstanceRef.current === map) map.invalidateSize(); }, 250);
+    setTimeout(() => { if (mapInstanceRef.current === map) map.invalidateSize(); }, 500);
+  };
+
+  const mapRefCallback = useCallback((el: HTMLDivElement | null) => {
+    if (el) {
+      mapContainerRef.current = el;
+      initMap(el);
+    } else {
+      cleanupMap();
+      mapContainerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      cleanupMap();
     };
   }, []);
 
-  // Sync user location marker & radius search limit ring
+  // Update user marker & scanning radius bounds
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map) return;
+    if (!map || !mapReady) return;
 
     const userIcon = L.divIcon({
       html: `
@@ -137,44 +277,73 @@ export default function SeekerDashboard({
       iconAnchor: [16, 16]
     });
 
-    if (userMarkerRef.current) {
+    if (userMarkerRef.current && userMarkerRef.current.getElement() && (userMarkerRef.current as any)._map === map) {
       userMarkerRef.current.setLatLng([userCoords.lat, userCoords.lng]);
     } else {
+      if (userMarkerRef.current) {
+        try { userMarkerRef.current.remove(); } catch (e) {}
+      }
       userMarkerRef.current = L.marker([userCoords.lat, userCoords.lng], { icon: userIcon }).addTo(map);
     }
 
     if (userCircleRef.current) {
-      userCircleRef.current.setLatLng([userCoords.lat, userCoords.lng]);
-    } else {
-      userCircleRef.current = L.circle([userCoords.lat, userCoords.lng], {
-        radius: 1000, // 1 km
-        fillColor: '#047857',
-        fillOpacity: 0.04,
-        color: '#047857',
-        weight: 1.2,
-        dashArray: '5, 4',
-      }).addTo(map);
+      try {
+        userCircleRef.current.remove();
+        userCircleRef.current = null;
+      } catch (e) {}
     }
-  }, [userCoords]);
+  }, [userCoords, mapReady]);
 
-  // Handle map view pans on selected kitchen change
+  // Center maps on selected kitchen location updates
   useEffect(() => {
-    if (mapInstanceRef.current && selectedKitchen) {
+    if (mapInstanceRef.current && mapReady && selectedKitchen) {
       mapInstanceRef.current.setView([selectedKitchen.lat, selectedKitchen.lng], 14, {
         animate: true,
       });
     }
-  }, [selectedKitchenId]);
+  }, [selectedKitchenId, mapReady]);
 
-  // Sync active kitchen pins with placards 
+  // Adjust Leaflet map's dimensions and invalidate sizes when toggling Fullscreen views
+  useEffect(() => {
+    if (mapInstanceRef.current && mapReady) {
+      const resizeTimeout1 = setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 50);
+      const resizeTimeout2 = setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 250);
+      return () => {
+        clearTimeout(resizeTimeout1);
+        clearTimeout(resizeTimeout2);
+      };
+    }
+  }, [isMapFullscreen, mapReady]);
+
+  // Handle document scroll behavior on fullscreen map activation
+  useEffect(() => {
+    if (isMapFullscreen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMapFullscreen]);
+
+  // Sync active partner kitchen pins
   useEffect(() => {
     const map = mapInstanceRef.current;
     const layer = kitchensLayerRef.current;
-    if (!map || !layer) return;
+    if (!map || !layer || !mapReady) return;
 
     layer.clearLayers();
 
-    filteredKitchens.forEach((k) => {
+    kitchensWithDistance.forEach((k) => {
       const isSelected = selectedKitchenId === k.id;
       const hasMeals = k.sponsoredCount > 0;
       const leavesCount = k.sponsoredCount;
@@ -182,24 +351,31 @@ export default function SeekerDashboard({
       const kitchenIcon = L.divIcon({
         html: `
           <div class="relative flex flex-col items-center select-none pointer-events-auto" style="width: 140px; text-align: center;">
-            <!-- Leaves / Meal balance bubble -->
-            <div class="bg-white px-2 py-0.5 rounded-full border ${isSelected ? 'border-amber-400 bg-amber-50' : hasMeals ? 'border-emerald-300' : 'border-slate-300'} shadow-sm flex items-center justify-center gap-0.5 mb-0.5">
-              <svg viewBox="0 0 100 100" class="w-2.5 h-2.5 ${isSelected ? 'fill-amber-600' : 'fill-emerald-700'} stroke-none shrink-0">
+            ${isSelected ? `
+            <div class="bg-white px-2 py-0.5 rounded-full border border-orange-400 shadow-sm flex items-center justify-center gap-0.5 mb-0.5 transform scale-105">
+              <svg viewBox="0 0 100 100" class="w-2.5 h-2.5 fill-orange-600 stroke-none shrink-0 animate-bounce">
                 <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
               </svg>
-              <span class="text-[9.5px] font-black font-mono ${isSelected ? 'text-amber-800' : 'text-emerald-800'}">${leavesCount}</span>
+              <span class="text-[9.5px] font-black font-mono text-orange-900">${leavesCount}</span>
             </div>
+            ` : `
+            <div class="bg-white px-2 py-0.5 rounded-full border ${hasMeals ? 'border-emerald-300' : 'border-slate-300'} shadow-sm flex items-center justify-center gap-0.5 mb-0.5 transition-transform duration-200 hover:scale-105">
+              <svg viewBox="0 0 100 100" class="w-2.5 h-2.5 ${hasMeals ? 'fill-emerald-700' : 'fill-slate-400'} stroke-none shrink-0">
+                <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
+              </svg>
+              <span class="text-[9.5px] font-black font-mono ${hasMeals ? 'text-emerald-800' : 'text-slate-500'}">${leavesCount}</span>
+            </div>
+            `}
             
-            <!-- Pin pointing node -->
             <div class="relative flex items-center justify-center mb-0.5">
-              ${isSelected ? '<span class="absolute -inset-2.5 rounded-full bg-amber-400/30 opacity-75 animate-ping"></span>' : hasMeals ? '<span class="absolute -inset-1.5 rounded-full bg-emerald-400/20 opacity-75 animate-pulse"></span>' : ''}
+              ${isSelected ? '<span class="absolute -inset-2.5 rounded-full bg-orange-400/30 opacity-75 animate-ping"></span>' : hasMeals ? '<span class="absolute -inset-1.5 rounded-full bg-emerald-400/20 opacity-75 animate-pulse"></span>' : ''}
               
               <div class="w-7 h-7 rounded-full flex items-center justify-center border-2 shadow-md transition-all duration-300 ${
                 isSelected
-                  ? 'bg-amber-600 border-white text-white' 
+                  ? 'bg-orange-600 border-white text-white scale-110' 
                   : hasMeals
                   ? 'bg-emerald-700 border-white text-white'
-                  : 'bg-slate-405 border-slate-300 text-slate-500 opacity-60'
+                  : 'bg-slate-400 border-slate-300 text-slate-500 opacity-60'
               }">
                 <svg viewBox="0 0 100 100" class="w-3.5 h-3.5 fill-current stroke-none">
                   <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
@@ -207,8 +383,7 @@ export default function SeekerDashboard({
               </div>
             </div>
             
-            <!-- Permanent High-Contrast Label -->
-            <div class="${isSelected ? 'bg-amber-850 bg-amber-700 text-white border-amber-900 shadow-md ring-2 ring-white' : 'bg-slate-900/95 text-white border-slate-800 shadow'} text-[9.5px] font-bold px-1.5 py-0.5 rounded border text-center whitespace-nowrap max-w-[130px] truncate">
+            <div class="${isSelected ? 'bg-orange-700 text-white border-orange-900 shadow-md ring-2 ring-white scale-105' : 'bg-slate-900/95 text-white border-slate-800 shadow'} text-[9.5px] font-bold px-1.5 py-0.5 rounded border text-center whitespace-nowrap max-w-[130px] truncate transition-all">
               ${k.name}
             </div>
           </div>
@@ -221,22 +396,25 @@ export default function SeekerDashboard({
       const marker = L.marker([k.lat, k.lng], { icon: kitchenIcon });
       marker.on('click', () => {
         setSelectedKitchenId(k.id);
+        setPinnedKitchenId(k.id);
+        // Switch to list layout on mobile if they want details
+        setMobileViewTab('list');
       });
       marker.addTo(layer);
     });
 
-    // Draw route line to selected kitchen
+    // Draw routing guideline to current highlight
     if (selectedKitchen) {
       L.polyline([[userCoords.lat, userCoords.lng], [selectedKitchen.lat, selectedKitchen.lng]], {
-        color: '#047857', // Emerald 700
-        weight: 2.5,
-        dashArray: '5, 5',
-        opacity: 0.7
+        color: '#f97316', // Orange 500 / matching selected line
+        weight: 2,
+        dashArray: '6, 6',
+        opacity: 0.65
       }).addTo(layer);
     }
-  }, [filteredKitchens, selectedKitchenId, userCoords]);
+  }, [kitchensWithDistance, selectedKitchenId, userCoords, mapReady]);
 
-  // Try to geolocate the user
+  // Handle live smartphone GPS query
   const requestLiveGPS = () => {
     setIsLoadingGPS(true);
     setGpsError(null);
@@ -255,355 +433,592 @@ export default function SeekerDashboard({
         setIsLoadingGPS(false);
       },
       (error) => {
-        setGpsError('Could not retrieve details. Using fallback area coordinates.');
+        setGpsError('Could not retrieve coordinates. Using fallback Aluva center.');
         setIsLoadingGPS(false);
       },
       { enableHighAccuracy: true, timeout: 5000 }
     );
   };
 
+  // Perform animated booking sequence
+  const handleClaimMealCode = (kitchenId: string) => {
+    if (claims.length > 0) return; // Prevent double claims (handled by business rules)
+
+    setBookingEateryId(kitchenId);
+    setTimeout(() => {
+      // Trigger true claim generation
+      onCreateClaim(kitchenId, seekerUsername);
+      setBookingEateryId(null);
+      setBookingSuccessId(kitchenId);
+      setIsTokenDrawerOpen(true); // Pop open the newly booked token explicitly
+
+      // Clear fireworks after 5 seconds
+      setTimeout(() => {
+        setBookingSuccessId(null);
+      }, 5000);
+    }, 1500);
+  };
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-6xl mx-auto">
-      {/* 1. KITCHENS & MAP SELECTOR (Left Column: 7 Units) */}
-      <div className="lg:col-span-7 flex flex-col gap-6">
-        {/* Filter Bar */}
-        <div className="bg-white border border-slate-200/80 p-4 rounded-3xl shadow-sm">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-bold tracking-tight text-slate-900">Athithi Counter Locator</h2>
-              <p className="text-xs text-slate-500">Locating warm meals sponsored by our community</p>
-            </div>
-
-             <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-xl">
-              {(['all', 'available', 'nearby'] as const).map(f => (
-                <button
-                  key={f}
-                  onClick={() => setActiveFilter(f)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider capitalize cursor-pointer transition-all ${
-                    activeFilter === f
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {f === 'available' ? 'With Meals' : f}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-col sm:flex-row items-center gap-3 bg-blue-50/50 p-3 rounded-2xl border border-blue-100/50">
-            <div className="text-blue-700 bg-white p-2 rounded-xl shadow-sm">
-              <Compass className={`w-5 h-5 ${isLoadingGPS ? 'animate-spin' : ''}`} />
-            </div>
-            <div className="flex-1 text-center sm:text-left">
-              <p className="text-xs font-semibold text-blue-900 flex flex-wrap items-center gap-1.5">
-                <span className="text-blue-600 font-bold uppercase tracking-wider">Your Device Location:</span>
-                Lat: {userCoords.lat.toFixed(4)}, Lng: {userCoords.lng.toFixed(4)}
-              </p>
-              <p className="text-[11px] text-blue-800 leading-normal">
-                {gpsError ? (
-                  <span className="text-red-650 font-medium">{gpsError}</span>
-                ) : (
-                  'Distances are live. Click the button to sync with your actual smartphone GPS.'
-                )}
-              </p>
-            </div>
+    <div className="flex flex-col gap-5 max-w-6xl mx-auto h-full">
+      {/* 1. ATHITHI CUSTOM TOP NAV BAR & TOKEN CONTAINER */}
+      <div className="bg-white border border-slate-200/80 px-4 py-3.5 rounded-3xl shadow-sm flex items-center justify-between gap-4">
+        {/* Left branding segment */}
+        <div className="flex items-center gap-3">
+          {onBackToHome && (
             <button
-              onClick={requestLiveGPS}
-              disabled={isLoadingGPS}
-              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap shadow-sm shadow-blue-100"
+              onClick={onBackToHome}
+              className="bg-slate-50 hover:bg-slate-100 font-sans text-slate-700 hover:text-slate-900 px-3 py-2 rounded-2xl text-[11px] font-bold border border-slate-200 cursor-pointer flex items-center gap-1.5 transition-all active:scale-95"
             >
-              {isLoadingGPS ? 'Locating...' : 'Sync Live GPS'}
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Home</span>
             </button>
-          </div>
-        </div>
+          )}
+          
+          <div className="h-8 w-px bg-slate-200 hidden sm:block" />
 
-        {/* Dynamic Map Board */}
-        <div className="bg-white border border-slate-200/80 p-4 rounded-3xl shadow-sm">
-          <div className="flex items-center justify-between mb-3.5">
-            <span className="text-xs font-mono font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
-              live chorundo? radar map
+          {/* Malayalam Letter Vowel 'അ' Avatar representing Athithi (Guest) */}
+          <div className="relative shrink-0 select-none">
+            <span className="absolute -inset-1 rounded-full bg-emerald-500/15 animate-pulse" />
+            <div className="relative w-9 h-9 rounded-full bg-emerald-700 ring-2 ring-emerald-50 border border-white flex items-center justify-center text-white font-bold shadow-md">
+              <span className="text-xs font-serif font-black" title="അ - Athithi (Visitor)">അ</span>
+            </div>
+          </div>
+
+          <div>
+            <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 text-[8px] font-mono font-black uppercase tracking-widest border border-emerald-100 rounded-full px-2 py-0.5">
+              athithi terminal
             </span>
-            <span className="text-[10px] text-slate-400 bg-[#EFECE6] px-2 py-0.5 rounded-full font-mono">
-              Scale 1:1 Georeferenced
-            </span>
-          </div>
-
-          <div className="relative w-full aspect-video md:aspect-[2.2/1] bg-[#EFECE6] border border-slate-350/40 rounded-2xl overflow-hidden shadow-inner z-0">
-            <div ref={mapContainerRef} className="w-full h-full" style={{ height: '100%', minHeight: '260px' }} />
+            <h2 className="text-xs font-bold tracking-tight text-slate-800 font-mono flex items-center gap-1 mt-0.5">
+              {seekerUsername}
+            </h2>
           </div>
         </div>
-        {/* Search input and status */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200/80 p-4 rounded-3xl shadow-sm">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              placeholder="Search by kitchen name, landmark, or cuisine..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 pl-10 text-xs font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5">
-              <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3.5 top-2.5 text-slate-400 hover:text-slate-650 font-bold text-xs cursor-pointer bg-transparent border-0"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-          <p className="text-[11px] text-slate-505 font-mono font-bold shrink-0 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-            Found <span className="text-emerald-700 font-black">{filteredKitchens.length}</span> / <span className="text-slate-501 font-semibold">{kitchens.length}</span> partners
-          </p>
+
+        {/* Right active claims / reset timing widget */}
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider hidden lg:inline-block bg-slate-50 border border-slate-100 px-2 py-1 rounded-md">
+            resets daily • pure anonym
+          </span>
+
+          {/* TICKET DRAWER TRIGGER BUTTON */}
+          <button
+            onClick={() => setIsTokenDrawerOpen(prev => !prev)}
+            id="seeker-token-toggle-btn"
+            className={`p-2.5 md:px-4 md:py-2.5 rounded-full md:rounded-2xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer border ${
+              claims.length > 0 
+                ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800 shadow-md ring-2 ring-emerald-100'
+                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300 shadow-xs'
+            }`}
+          >
+            <div className="relative flex items-center justify-center">
+              <Ticket className={`w-4 h-4 ${claims.length > 0 ? 'animate-bounce text-white' : 'text-slate-400'}`} />
+              {claims.length > 0 && (
+                <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+              )}
+            </div>
+            <span className="hidden md:inline">{claims.length > 0 ? 'My Active Token' : 'No Claimed Tokens'}</span>
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform opacity-75 hidden md:block ${isTokenDrawerOpen ? 'rotate-180' : ''}`} />
+          </button>
         </div>
-
-        {/* Kitchen cards table/deck */}
-        {displayedKitchens.length === 0 ? (
-          <div className="bg-white border border-slate-200 p-8 rounded-3xl text-center text-slate-501">
-            <p className="text-sm font-semibold">No partner kitchens match your active filters or text search.</p>
-            <button
-              onClick={() => { setSearchTerm(''); setActiveFilter('all'); }}
-              className="mt-3 text-xs font-bold text-blue-600 hover:underline cursor-pointer"
-            >
-              Reset all active search queries
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {displayedKitchens.map((k) => {
-              const isSelected = selectedKitchenId === k.id;
-              const hasMeals = k.sponsoredCount > 0;
-
-              return (
-                <div
-                  key={k.id}
-                  onClick={() => setSelectedKitchenId(k.id)}
-                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                    isSelected
-                      ? 'border-emerald-600 bg-emerald-50/30'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-1.5 mb-1.5">
-                      <span className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-widest">
-                        {k.distanceKm.toFixed(2)} km away
-                      </span>
-                      <span
-                        className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                          hasMeals ? 'bg-emerald-100 text-emerald-800' : 'bg-red-50 text-red-700 font-bold'
-                        }`}
-                      >
-                        {hasMeals ? `${k.sponsoredCount} meals sponsored` : '0 meals sponsored'}
-                      </span>
-                    </div>
-
-                    <h3 className="font-bold text-sm text-slate-900 line-clamp-1">{k.name}</h3>
-                    <p className="text-xs text-slate-505 line-clamp-1 mt-0.5">{k.address}</p>
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-slate-100 mt-3 pt-2">
-                    <span className="text-[11px] text-slate-500 font-semibold">{k.cuisine}</span>
-                    <span className="text-[11px] text-amber-500 font-black">★ {k.rating}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Show More Pagination control */}
-        {filteredKitchens.length > displayCount && (
-          <div className="flex justify-center pt-1">
-            <button
-              onClick={() => setDisplayCount(prev => prev + 12)}
-              className="bg-white hover:bg-slate-50 active:scale-97 border border-slate-200 rounded-2xl px-6 py-3 text-xs font-bold text-slate-700 shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 w-full"
-            >
-              Show More Partner Kitchens (+{filteredKitchens.length - displayCount} remaining)
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* 2. SPECIFIC KITCHEN & CLAIM (Right Column: 5 Units) */}
-      <div className="lg:col-span-5 flex flex-col gap-6">
-        {/* Selected Kitchen Details block */}
-        <div className="bg-white border border-slate-200/80 rounded-3xl shadow-sm overflow-hidden">
-          <div className="h-28 bg-emerald-800 relative">
-            <img
-              src={selectedKitchen.image}
-              alt={selectedKitchen.name}
-              className="w-full h-full object-cover opacity-80 mix-blend-overlay"
-              referrerPolicy="no-referrer"
+      {/* 2. ATHITHI TICKET OVERLAY / SLIDEOUT DRAWER */}
+      <AnimatePresence>
+        {isTokenDrawerOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.4 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsTokenDrawerOpen(false)}
+              className="fixed inset-0 bg-slate-900 z-[9990] cursor-pointer"
             />
-            <div className="absolute bottom-3 left-4 right-4 text-white">
-              <span className="bg-emerald-900/60 uppercase tracking-widest font-mono text-[9px] font-bold px-2 py-0.5 rounded-md backdrop-blur-xs">
-                {selectedKitchen.cuisine}
-              </span>
-              <h2 className="text-lg font-serif font-bold mt-1 tracking-tight leading-tight drop-shadow-xs">
-                {selectedKitchen.name}
-              </h2>
-            </div>
-          </div>
-
-          <div className="p-5">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
-              <div>
-                <p className="text-xs text-slate-500 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                  {selectedKitchen.address}
-                </p>
-                <p className="text-xs text-slate-500 flex items-center gap-1 mt-1.5">
-                  <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                  {selectedKitchen.phone}
-                </p>
-              </div>
-              <div className="text-right whitespace-nowrap">
-                <span className="text-xs font-bold text-amber-600">★ {selectedKitchen.rating} / 5</span>
-                <p className="text-[10px] text-slate-400 mt-1">{selectedKitchen.claimedCount} meals served</p>
-              </div>
-            </div>
-
-            {/* Meal pool meter */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/50 mb-5">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-700">Meals Sponsored Active:</span>
-                <span className="text-lg font-black text-emerald-600">{selectedKitchen.sponsoredCount} Available</span>
-              </div>
-
-              {/* Progress bar representing ratio */}
-              <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, (selectedKitchen.sponsoredCount / 30) * 100)}%` }}
-                />
-              </div>
-              <p className="text-[10px] text-slate-500 leading-normal mt-1.5">
-                {selectedKitchen.sponsoredCount > 0
-                  ? 'Each sponsored meal contains traditional warm Rice (Choru), Curry Sambar, Pickles, and Thoran vegetables served on an eco-friendly plantain leaf.'
-                  : '⚠️ Currently, out of sponsored meals. You can notify a donor or sponsor some meals yourself under the Donor tab to reload this kitchen!'}
-              </p>
-            </div>
-
-            {/* Action buttons */}
-            {claims.length > 0 ? (
-              <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-2xl text-xs flex gap-2">
-                <Info className="w-5 h-5 shrink-0 text-amber-600" />
-                <div>
-                  <p className="font-bold text-amber-950">Active Ticket Limit Active</p>
-                  <p className="mt-1 leading-normal text-amber-800">
-                    You currently hold 1 pending ticket (**{claims[0].code}**). To ensure fair community access, you are limited to holding one active ticket at a time.
-                  </p>
-                  <p className="mt-2 font-semibold text-amber-950">
-                    Please redeem or release your current ticket below to generate another one.
-                  </p>
-                </div>
-              </div>
-            ) : selectedKitchen.sponsoredCount > 0 ? (
-              <button
-                onClick={() => onCreateClaim(selectedKitchen.id)}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white text-sm font-semibold p-4 rounded-xl shadow-lg shadow-emerald-100 transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                <Ticket className="w-4.5 h-4.5" />
-                Claim Pre-Paid Meal Code
-              </button>
-            ) : (
-              <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-2xl text-xs flex gap-2">
-                <Info className="w-5 h-5 shrink-0 text-amber-600" />
-                <div>
-                  <p className="font-bold">Waiting for Sponsors</p>
-                  <p className="mt-0.5 leading-normal text-amber-800">
-                    Sadhya social projects run on live local pre-payments. Switch roles to the "Donor" view above to pre-pay a meal, or ask a neighboring donor in Aluva/Kochi to load Sadhya Bhavan!
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Guest without Phone guidelines (CRITICAL EXPLICIT REQUIREMENT 3.2.2) */}
-        <div className="bg-emerald-950 text-emerald-50 border-t-4 border-emerald-500 p-5 rounded-3xl shadow-md">
-          <div className="flex gap-3">
-            {/* Minimal SVG of a green banana leaf emblem directly */}
-            <div className="w-12 h-12 shrink-0 bg-white/10 rounded-full flex items-center justify-center p-1.5">
-              <svg viewBox="0 0 100 100" className="w-9 h-9 fill-emerald-400">
-                <path d="M50 12 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 12 Z" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-serif font-bold text-sm tracking-tight text-white flex items-center gap-1.5">
-                No Phone? No Device?
-                <span className="bg-emerald-500 text-emerald-950 font-sans font-black text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-md">
-                  Community Banner
-                </span>
-              </h3>
-              <p className="text-[11px] text-emerald-200 leading-relaxed mt-1">
-                Our partner kitchens are prominently marked with the **chorundo? Green Plantain Leaf Signboard** on their front doors.
-              </p>
-              <ul className="list-disc pl-4 mt-2 text-[11px] text-emerald-200 space-y-1">
-                <li>Walk directory up to any partner kitchen showing the green banner.</li>
-                <li>Simply request a meal at the counter.</li>
-                <li>The staff will check their physical pre-paid ledger and serve you immediately — no device or QR code required.</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* Active claims section */}
-        {claims.length > 0 && (
-          <div className="bg-white border-2 border-dashed border-emerald-300 p-5 rounded-3xl shadow-sm">
-            <h3 className="text-xs font-mono font-black text-emerald-800 uppercase tracking-widest flex items-center gap-1.5 mb-3">
-              <Ticket className="w-4 h-4 text-emerald-600" />
-              your active athithi voucher
-            </h3>
-
-            <div className="space-y-3.5">
-              {claims.map(claim => (
-                <div key={claim.id} className="bg-emerald-50/40 border border-emerald-100/60 p-4 rounded-2xl relative overflow-hidden">
-                  {/* Decorative corner cutouts representing a physical ticket */}
-                  <div className="absolute top-1/2 -left-2 w-4 h-4 rounded-full bg-white border-r border-emerald-100" />
-                  <div className="absolute top-1/2 -right-2 w-4 h-4 rounded-full bg-white border-l border-emerald-100" />
-
-                  <div className="flex items-start justify-between gap-4 mb-2">
-                    <div>
-                      <h4 className="font-bold text-xs text-slate-800">{claim.kitchenName}</h4>
-                      <p className="text-[10px] text-slate-500 mt-0.5">Voucher generated just now</p>
-                    </div>
-                    <span className="bg-emerald-600/10 text-emerald-800 font-bold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded">
-                      ready to claim
-                    </span>
+            
+            {/* Drawer */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="fixed right-0 top-0 bottom-0 w-full sm:max-w-md bg-white z-[9991] shadow-2xl overflow-y-auto flex flex-col p-6 cursor-default border-l border-slate-200"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
+                    <Ticket className="w-5 h-5" />
                   </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-950">Athithi Meal Voucher</h3>
+                    <p className="text-[11px] font-mono text-slate-400">verification & validation</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsTokenDrawerOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-xl border border-emerald-100">
-                    <div className="text-center sm:text-left">
-                      <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">verification code</p>
-                      <p className="text-lg font-black font-mono text-emerald-700 tracking-wider select-all">
-                        {claim.code}
+              {claims.length === 0 ? (
+                /* Empty state */
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-slate-50 rounded-3xl border border-dashed border-slate-200 my-4">
+                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-300 mb-4 shadow-inner">
+                    <Ticket className="w-8 h-8 stroke-[1.2]" />
+                  </div>
+                  <h4 className="font-bold text-slate-800 text-sm">No Active Tickets Found</h4>
+                  <p className="text-xs text-slate-500 mt-2 max-w-[240px] leading-relaxed">
+                    You have not claimed any pre-paid meal codes yet. Select any partner eatery from the map to generate one.
+                  </p>
+                  
+                  <div className="mt-6 bg-emerald-50 text-emerald-900 text-[11px] p-3 rounded-2xl text-left border border-emerald-200">
+                    <div className="flex gap-2">
+                      <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div>
+                        <span className="font-bold">Did you know?</span> Each ticket grants access to 1 wholesome Kerala meal (traditional curry and rice served on plantain leaves).
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => setIsTokenDrawerOpen(false)}
+                    className="mt-6 w-full bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl block transition-all"
+                  >
+                    View eateries map
+                  </button>
+                </div>
+              ) : (
+                /* Active claim details */
+                <div className="flex-1 flex flex-col justify-between">
+                  <div className="space-y-4">
+                    <div className="bg-emerald-50/50 border border-emerald-100/50 p-4 rounded-2xl">
+                      <p className="text-[11px] leading-relaxed text-emerald-900">
+                        ✨ To guarantee access for all, each local guest is limited to holding **one active token** at any given time.
                       </p>
                     </div>
 
-                    <button
-                      onClick={() => onCancelClaim(claim.id)}
-                      className="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 active:scale-95 text-[10px] font-bold text-slate-700 px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      Release Meal Pool
-                    </button>
+                    {claims.map(claim => {
+                      const kitchen = kitchens.find(k => k.id === claim.kitchenId);
+                      return (
+                      <div key={claim.id} className="bg-white border-2 border-emerald-600 p-5 rounded-2xl relative overflow-hidden shadow-md">
+                        {/* Ticket cutout notches */}
+                        <div className="absolute top-1/2 -left-2 w-4 h-4 rounded-full bg-slate-100 border-r border-emerald-100 transform -translate-y-1/2" />
+                        <div className="absolute top-1/2 -right-2 w-4 h-4 rounded-full bg-slate-100 border-l border-emerald-100 transform -translate-y-1/2" />
+
+                        <div className="flex items-stretch justify-between gap-2.5 mb-3.5 border-b border-dashed border-slate-200 pb-3">
+                          <div>
+                            <h4 className="font-bold text-xs text-slate-900 uppercase">partner kitchen</h4>
+                            <p className="text-sm font-black text-emerald-800 mt-0.5">{kitchen?.name || claim.kitchenName}</p>
+                            <p className="text-[10px] text-slate-500 mt-0.5">{kitchen?.address}</p>
+                          </div>
+                          <div className="flex flex-col items-end justify-between gap-2 shrink-0 ml-2">
+                            <span className="bg-emerald-600/10 text-emerald-800 font-bold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded text-right">
+                              meal not yet claimed
+                            </span>
+                            <button
+                              onClick={() => {
+                                // Simple open map or external link trigger in a real app, 
+                                // here we just focus it
+                                setSelectedKitchenId(claim.kitchenId);
+                                setPinnedKitchenId(claim.kitchenId);
+                                setIsTokenDrawerOpen(false);
+                              }}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg border border-emerald-700 cursor-pointer transition-all flex items-center gap-1.5"
+                              title="Navigate to kitchen"
+                            >
+                              <MapPin className="w-3.5 h-3.5" />
+                              <span className="text-[10px] font-bold uppercase">Navigate</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="text-center bg-slate-50 border border-slate-200/60 py-4 px-3 rounded-xl mb-4">
+                          <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-black">verification code</p>
+                          <p className="text-3xl font-black font-mono text-emerald-800 tracking-widest mt-1.5 select-all select-none">
+                            {claim.code}
+                          </p>
+                          <p className="text-[9.5px] text-slate-400 mt-2 font-mono">Present this to the restaurant staff billing counter</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-start gap-2 text-xs text-slate-500">
+                            <ShieldCheck className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                            <span className="text-slate-500">The staff will tick off this code on their local dashboard ledger, serve you immediately, and prepare your plantain leaf tray.</span>
+                          </div>
+                        </div>
+
+                        {/* Force Release code to reset limits */}
+                        <button
+                          onClick={() => {
+                            onCancelClaim(claim.id);
+                            setIsTokenDrawerOpen(false);
+                          }}
+                          className="mt-6 w-full bg-white hover:bg-red-50 active:scale-95 text-[10px] font-black uppercase text-red-650 text-red-600 hover:text-red-700 py-2.5 rounded-xl border border-red-200 hover:border-red-300 transition-all cursor-pointer flex items-center justify-center gap-2"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-red-550 text-red-500" />
+                          Release Meal Voucher back to Pool
+                        </button>
+                      </div>
+                      )
+                    })}
                   </div>
 
-                  <div className="mt-2.5 flex items-center gap-1.5 text-[10px] text-slate-500">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                    <span>Provide this code to the billing staff at the restaurant to receive your dining tray.</span>
+                  <div className="pt-6 border-t border-slate-100 mt-5">
+                    <div className="bg-slate-50 p-4 rounded-2xl flex gap-3 text-xs text-slate-500 border border-slate-200/55">
+                      <Smartphone className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold text-slate-800 font-serif block mb-0.5">Offline Ledger Access Available</span>
+                        If your smartphone dies, walk up to the same location, quote your anonymous Seeker Code (`{seekerUsername}`), or describe your code to checkout instantly.
+                      </div>
+                    </div>
                   </div>
                 </div>
-              ))}
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* 3. PROMINENT FULL HEIGHT MAP AND LEFT LIST SIDEBAR PANEL */}
+      <div className="bg-white rounded-3xl overflow-hidden shadow-sm flex flex-col h-[640px] md:h-[720px] lg:h-[760px] relative">
+        {/* Mobile View Tab Header */}
+        <div className="flex border-b border-slate-100 md:hidden bg-white shrink-0">
+          <button
+            type="button"
+            onClick={() => setMobileViewTab('list')}
+            className={`flex-1 py-3 text-xs font-bold text-center border-b-2 transition-all cursor-pointer ${
+              mobileViewTab === 'list'
+                ? 'border-emerald-600 text-emerald-800 bg-emerald-50/10'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            Find a Partner Kitchen ({filteredKitchens.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileViewTab('map')}
+            className={`flex-1 py-3 text-xs font-bold text-center border-b-2 transition-all cursor-pointer ${
+              mobileViewTab === 'map'
+                ? 'border-emerald-600 text-emerald-800 bg-emerald-50/10'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            View in Map
+          </button>
+        </div>
+
+        <div className="flex-1 flex flex-row overflow-hidden h-full">
+          
+          {/* LEFT SIDE PANEL: eateries list container */}
+          <div className={`w-full md:w-[380px] lg:w-[420px] border-r border-slate-200 shrink-0 flex flex-col bg-slate-100 h-full overflow-hidden ${
+            mobileViewTab === 'list' ? 'flex' : 'hidden md:flex'
+          }`}>
+            {/* Header info / Search / Proximity */}
+            <div className="p-4 bg-white flex flex-col gap-3.5 shadow-xs shrink-0">
+              <div className="flex flex-col gap-1.5 items-start">
+                <h3 className="text-sm font-bold text-slate-800 tracking-tight">Find a Partner Kitchen</h3>
+                <div className="bg-emerald-50/50 border border-emerald-100/80 rounded-md px-2 py-1 inline-flex self-start">
+                  <p className="text-[10.5px] text-slate-600">
+                    {kitchensWithDistance.filter(k => k.distanceKm <= 5 && k.sponsoredCount > 0).length > 0 ? (
+                      <span>
+                        <strong className="font-extrabold text-emerald-800">
+                          {kitchensWithDistance.filter(k => k.distanceKm <= 5 && k.sponsoredCount > 0).length} 
+                          {kitchensWithDistance.filter(k => k.distanceKm <= 5 && k.sponsoredCount > 0).length === 1 ? ' kitchen' : ' kitchens'}
+                        </strong> within 5km
+                      </span>
+                    ) : (
+                      <span className="text-amber-800 font-bold">
+                        0 kitchens within 5km.
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Search interface input */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Filter by name, landmark, cuisine..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 pl-9 text-xs font-semibold text-slate-850 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2.5 top-2.5 text-slate-450 hover:text-slate-600 text-[10px] font-bold"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Scrolling eateries catalog list element */}
+            <div 
+              ref={listContainerRef} 
+              className="flex-1 overflow-y-auto p-3 space-y-2.5 custom-scrollbar"
+            >
+              {displayedKitchens.length === 0 ? (
+                <div className="bg-white border border-slate-200/60 p-6 rounded-2xl text-center text-slate-400 my-4 mx-1">
+                  <Utensils className="w-8 h-8 text-slate-300 mx-auto mb-2 stroke-[1.2]" />
+                  <p className="text-xs font-semibold">No eateries match your search term.</p>
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="mt-2 text-[10px] font-black uppercase text-emerald-700 hover:underline cursor-pointer"
+                  >
+                    reset search
+                  </button>
+                </div>
+              ) : (
+                displayedKitchens.map((k) => {
+                  const isSelected = selectedKitchenId === k.id;
+                  const hasMeals = k.sponsoredCount > 0;
+
+                  return (
+                    <div
+                      key={k.id}
+                      id={`seeker-eatery-card-${k.id}`}
+                      onClick={() => {
+                        setSelectedKitchenId(selectedKitchenId === k.id ? null : k.id);
+                        setPinnedKitchenId(null);
+                      }}
+                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative ${
+                        isSelected
+                          ? 'border-emerald-600 bg-white shadow-2xs'
+                          : 'border-slate-100 bg-white hover:border-slate-200 hover:shadow-2xs'
+                      }`}
+                    >
+                      {/* Top metric overview spacer */}
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[10px] font-mono font-bold text-slate-400/90 tracking-wide flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                          {k.distanceKm.toFixed(2)} km away
+                        </span>
+
+                        <span
+                          className={`text-[9.5px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0 ${
+                            hasMeals ? 'bg-emerald-50 text-emerald-800 border border-emerald-100/80 font-mono' : 'bg-red-50 text-red-700 border border-red-100'
+                          }`}
+                        >
+                          {hasMeals ? (
+                            <>
+                              <svg viewBox="0 0 100 100" className="w-2.5 h-2.5 fill-emerald-600 stroke-none shrink-0">
+                                <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
+                              </svg>
+                              <span>{k.sponsoredCount} {k.sponsoredCount === 1 ? 'meal available' : 'meals available'}</span>
+                            </>
+                          ) : (
+                            <span>0 meals available</span>
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Main identification metadata layout */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className={`font-bold text-xs.5 text-slate-900 ${isSelected ? '' : 'line-clamp-1'}`}>{k.name}</h3>
+                          <p className="text-[10.5px] text-slate-400 font-mono mt-0.5 leading-tight">{k.address}</p>
+                        </div>
+                        <span className="text-[10.5px] text-amber-500 font-bold shrink-0 self-start">★ {k.rating}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-[10px]">
+                        <span className="text-slate-500 font-bold font-mono">{k.cuisine}</span>
+                        {!isSelected && (
+                          <span className="text-slate-400 flex items-center gap-1 font-semibold">
+                            Click to view booking options
+                            <ChevronRight className="w-3 h-3" />
+                          </span>
+                        )}
+                      </div>
+
+                      {/* EXPANDABLE BOOKING CONTROLLER CONTAINER */}
+                      <AnimatePresence>
+                        {isSelected && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.25 }}
+                            className="overflow-hidden mt-3 pt-3 border-t border-slate-100 flex flex-col gap-3.5"
+                            onClick={(e) => e.stopPropagation()} // Stop bubbling
+                          >
+                            {/* Visual representation of food banner */}
+                            <div className="h-20 w-full rounded-xl overflow-hidden relative">
+                              <img
+                                src={k.image}
+                                alt={k.name}
+                                className="w-full h-full object-cover opacity-90"
+                                referrerPolicy="no-referrer"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent flex items-end p-2.5">
+                                <p className="text-[10px] text-white font-serif leading-tight font-light">{k.name} special meals program</p>
+                              </div>
+                            </div>
+
+                            {/* Contact indices */}
+                            <div className="text-[10.5px] text-slate-550 space-y-1">
+                              <p className="flex items-center gap-1.5 p-1 rounded-md hover:bg-slate-100">
+                                <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span>{k.phone}</span>
+                              </p>
+                              <p className="text-slate-400 text-[9.5px] pl-5">{k.claimedCount} local residents served since program inception.</p>
+                            </div>
+
+                            {/* Pre-paid visual slider meals */}
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                              <div className="flex items-end justify-between font-mono mb-1.5">
+                                <span className="text-[9.5px] text-slate-500 font-bold">active meals remaining:</span>
+                                <span className="text-[11px] font-black text-emerald-855 text-emerald-700">{k.sponsoredCount} available</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-emerald-600 rounded-full transition-all duration-300"
+                                  style={{ width: `${Math.min(100, (k.sponsoredCount / 30) * 100)}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* ANIMATED BOOKING BUTTON ACTION */}
+                            {claims.length > 0 ? (
+                              claims.some(c => c.kitchenId === k.id) ? (
+                                <button
+                                  disabled={true}
+                                  className="w-full text-xs font-bold p-3 rounded-xl shadow-xs bg-emerald-50 border border-emerald-300 text-emerald-800 flex items-center justify-center gap-2 cursor-not-allowed"
+                                >
+                                  <Check className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
+                                  <span>Successfully Booked! Code: {claims.find(c => c.kitchenId === k.id)?.code}</span>
+                                </button>
+                              ) : (
+                                <div className="bg-amber-50 text-amber-900 text-[10px] p-2.5 rounded-xl border border-amber-200">
+                                  <p className="font-bold">Token limit reached</p>
+                                  <p className="mt-0.5 text-amber-800 font-medium">To keep distribution fair, you are capped at 1 active token. Please redeem or release your current ticket (**{claims[0].code}** for {claims[0].kitchenName}) from the active token drawer to request another.</p>
+                                </div>
+                              )
+                            ) : k.sponsoredCount > 0 ? (
+                              <button
+                                onClick={() => handleClaimMealCode(k.id)}
+                                disabled={bookingEateryId === k.id || bookingSuccessId === k.id}
+                                className={`w-full text-xs font-bold p-3 rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                                  bookingSuccessId === k.id
+                                    ? 'bg-emerald-600 text-white animate-pulse'
+                                    : bookingEateryId === k.id
+                                    ? 'bg-slate-150 text-slate-600'
+                                    : 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                                }`}
+                              >
+                                {bookingEateryId === k.id ? (
+                                  <>
+                                    <span className="w-3.5 h-3.5 border-2 border-emerald-800 border-t-transparent rounded-full animate-spin shrink-0" />
+                                    <span>Syncing with pre-paid ledger...</span>
+                                  </>
+                                ) : bookingSuccessId === k.id ? (
+                                  <>
+                                    <Sparkles className="w-4 h-4 text-white animate-bounce shrink-0" />
+                                    <span>🎉 Pre-paid Voucher Issued!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Ticket className="w-3.5 h-3.5" />
+                                    <span>Generate Meal Token</span>
+                                  </>
+                                )}
+                              </button>
+                            ) : (
+                              <div className="bg-slate-100 text-slate-500 text-[10px] p-2.5 rounded-xl border border-slate-200">
+                                <p className="font-bold">Currently Waiting for Sponsors</p>
+                                <p className="mt-0.5 leading-relaxed">This eatery has exhausted its prepaid fund. You can pre-pay visual leaf credits using the **Donor** panel tabs above to instantly re-enable bookings.</p>
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Pagination drawer show more trigger */}
+            {filteredKitchens.length > displayCount && (
+              <div className="p-3 bg-white border-t border-slate-100 shrink-0">
+                <button
+                  onClick={() => setDisplayCount(prev => prev + 15)}
+                  className="bg-slate-50 hover:bg-slate-100 text-[10.5px] font-bold text-slate-600 border border-slate-200/80 rounded-xl py-2 w-full text-center cursor-pointer block"
+                >
+                  Show More Eateries (+{filteredKitchens.length - displayCount} remaining)
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT SIDE PANEL: leaflet georeferenced canvas map */}
+          <div className={`${
+            isMapFullscreen
+              ? 'fixed inset-0 z-[9990] h-screen w-screen bg-[#DDD9D1] flex flex-col'
+              : `flex-1 h-full relative overflow-hidden bg-[#DDD9D1] ${
+                  mobileViewTab === 'map' ? 'block' : 'hidden md:block'
+                }`
+          }`}>
+
+            {/* Container for the map canvas and its absolute overlay controls */}
+            <div className="flex-1 w-full h-full relative overflow-hidden">
+              <div ref={mapRefCallback} className="w-full h-full" style={{ height: '100%', minHeight: isMapFullscreen ? '100%' : '350px' }} />
+
+              
+              {/* GPS tracker warnings and error overlays inside map frame directly */}
+              {gpsError && (
+                <div className="absolute bottom-16 left-3 right-3 z-[400] z-index-[401]">
+                  <div className="bg-red-50 text-red-800 text-[10.5px] py-1.5 px-3 rounded-xl border border-red-100 shadow-lg flex items-center justify-between gap-1">
+                    <span className="truncate">{gpsError}</span>
+                    <button onClick={() => setGpsError(null)} className="text-[12px] font-black hover:text-slate-800 px-1 cursor-pointer">✕</button>
+                  </div>
+                </div>
+              )}
+
+              {/* View Fullscreen Floating Toggler (Bottom-Left) */}
+              <div className="absolute bottom-8 left-4 z-[400] select-none pointer-events-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsMapFullscreen(prev => !prev)}
+                  className="bg-white hover:bg-slate-50 active:scale-95 text-slate-800 p-2.5 rounded-2xl shadow-md border border-slate-200/80 flex items-center justify-center gap-1.5 font-sans font-bold text-[10px] cursor-pointer transition-all uppercase tracking-wider"
+                  title={isMapFullscreen ? "Exit Fullscreen" : "View Fullscreen"}
+                >
+                  {isMapFullscreen ? (
+                    <>
+                      <Minimize className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Minimize Map</span>
+                    </>
+                  ) : (
+                    <>
+                      <Maximize className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>View Fullscreen</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Floating Location Finder HUD Button (Bottom-Right) */}
+              <div className="absolute bottom-8 right-4 z-[400] select-none pointer-events-auto">
+                <button
+                  onClick={requestLiveGPS}
+                  disabled={isLoadingGPS}
+                  className="bg-emerald-700 hover:bg-emerald-800 active:scale-95 disabled:opacity-80 text-white px-3.5 py-2  rounded-xl shadow-lg border border-emerald-650 flex items-center gap-1.5 text-[10px] font-bold cursor-pointer transition-all uppercase tracking-wider"
+                  title="Detect Device Location Coordinates"
+                >
+                  <Navigation className={`w-3.5 h-3.5 shrink-0 ${isLoadingGPS ? 'animate-spin' : ''}`} />
+                  <span>{isLoadingGPS ? 'LOCATING...' : 'MY LOCATION'}</span>
+                </button>
+              </div>
             </div>
           </div>
-        )}
+        </div>
+
       </div>
     </div>
   );

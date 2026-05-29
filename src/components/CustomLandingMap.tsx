@@ -27,7 +27,7 @@ export default function CustomLandingMap({
 }: CustomLandingMapProps) {
   const [zoomLevel, setZoomLevel] = useState(14);
   const [isLocating, setIsLocating] = useState(false);
-  const [radiusKm, setRadiusKm] = useState(1.0); // 1 km radius default
+  const [selectedKitchenId, setSelectedKitchenId] = useState<string | null>(null);
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
@@ -59,6 +59,7 @@ export default function CustomLandingMap({
   const userMarkerRef = useRef<L.Marker | null>(null);
   const userCircleRef = useRef<L.Circle | null>(null);
   const kitchensLayerRef = useRef<L.LayerGroup | null>(null);
+  const markersRef = useRef<Record<string, L.Marker>>({});
   const timeoutsRef = useRef<any[]>([]);
 
   // Keep latest coords and zoom in refs to avoid rebuilding initMap callback
@@ -115,22 +116,7 @@ export default function CustomLandingMap({
     );
   };
 
-  // Find nearest kitchens in search radius
-  const nearKitchens = kitchens.filter((k) => {
-    const dist = calculateDistance(userCoords.lat, userCoords.lng, k.lat, k.lng);
-    return dist <= radiusKm;
-  });
-
-  // Automatically update helpful reminders of the radius rule
-  useEffect(() => {
-    if (!isLocked) {
-      if (nearKitchens.length > 0) {
-        setAlertMsg(null);
-      } else {
-        setAlertMsg(`No active meal spots found within ${radiusKm}km of your coordinates. You can adjust the radius below to scan a wider area!`);
-      }
-    }
-  }, [userCoords, radiusKm, isLocked]);
+  const kitchensWithMeals = kitchens.filter((k) => k.sponsoredCount > 0);
 
   // Leaflet instantiation helper
   const initMap = (container: HTMLDivElement) => {
@@ -290,26 +276,24 @@ export default function CustomLandingMap({
       iconAnchor: [16, 16]
     });
 
-    if (userMarkerRef.current) {
+    if (userMarkerRef.current && userMarkerRef.current.getElement() && (userMarkerRef.current as any)._map === map) {
       userMarkerRef.current.setLatLng([userCoords.lat, userCoords.lng]);
     } else {
+      if (userMarkerRef.current) {
+        try {
+          userMarkerRef.current.remove();
+        } catch (e) {}
+      }
       userMarkerRef.current = L.marker([userCoords.lat, userCoords.lng], { icon: userIcon }).addTo(map);
     }
 
     if (userCircleRef.current) {
-      userCircleRef.current.setLatLng([userCoords.lat, userCoords.lng]);
-      userCircleRef.current.setRadius(radiusKm * 1000);
-    } else {
-      userCircleRef.current = L.circle([userCoords.lat, userCoords.lng], {
-        radius: radiusKm * 1000,
-        fillColor: '#047857',
-        fillOpacity: 0.05,
-        color: '#047857',
-        weight: 1.5,
-        dashArray: '5, 4',
-      }).addTo(map);
+      try {
+        userCircleRef.current.remove();
+        userCircleRef.current = null;
+      } catch (e) {}
     }
-  }, [userCoords, radiusKm, mapReady, pinsTrigger]);
+  }, [userCoords, mapReady, pinsTrigger]);
 
   // Sync kitchen markers
   useEffect(() => {
@@ -318,30 +302,39 @@ export default function CustomLandingMap({
     if (!map || !layer || !mapReady) return;
 
     layer.clearLayers();
+    markersRef.current = {};
 
     kitchens.forEach((k) => {
-      const isNearby = nearKitchens.some(nk => nk.id === k.id);
+      const isSelected = selectedKitchenId === k.id;
       const leavesCount = k.sponsoredCount;
       const hasMeals = leavesCount > 0;
-      const isMarkerActive = isNearby && !isLocked && hasMeals;
 
-      const kitchenIcon = L.divIcon({
-        html: `
+      const getKitchenIconHtml = (isSelectedVal: boolean) => {
+        return `
           <div class="relative flex flex-col items-center select-none pointer-events-auto" style="width: 140px; text-align: center;">
-            ${isNearby ? `
-            <div class="bg-white px-2 py-0.5 rounded-full border ${hasMeals ? 'border-emerald-300' : 'border-slate-300'} shadow-sm flex items-center justify-center gap-0.5 mb-0.5 transform transition-transform group-hover:scale-105 duration-200">
+            ${isSelectedVal ? `
+            <div class="bg-white px-2 py-0.5 rounded-full border border-orange-400 shadow-sm flex items-center justify-center gap-0.5 mb-0.5 transform scale-105">
+              <svg viewBox="0 0 100 100" class="w-2.5 h-2.5 fill-orange-600 stroke-none shrink-0 animate-bounce">
+                <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
+              </svg>
+              <span class="text-[9.5px] font-black font-mono text-orange-900">${leavesCount}</span>
+            </div>
+            ` : `
+            <div class="bg-white px-2 py-0.5 rounded-full border ${hasMeals ? 'border-emerald-300' : 'border-slate-300'} shadow-sm flex items-center justify-center gap-0.5 mb-0.5 transition-transform duration-200 hover:scale-105">
               <svg viewBox="0 0 100 100" class="w-2.5 h-2.5 ${hasMeals ? 'fill-emerald-700' : 'fill-slate-400'} stroke-none shrink-0">
                 <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
               </svg>
               <span class="text-[9.5px] font-black font-mono ${hasMeals ? 'text-emerald-800' : 'text-slate-500'}">${leavesCount}</span>
             </div>
-            ` : '<div style="height: 18px; margin-bottom: 2px;"></div>'}
+            `}
             
             <div class="relative flex items-center justify-center mb-0.5">
-              ${isMarkerActive ? '<span class="absolute -inset-2 rounded-full bg-emerald-400/30 opacity-75 animate-pulse"></span>' : ''}
+              ${isSelectedVal ? '<span class="absolute -inset-2.5 rounded-full bg-orange-400/30 opacity-75 animate-ping"></span>' : hasMeals ? '<span class="absolute -inset-1.5 rounded-full bg-emerald-400/20 opacity-75 animate-pulse"></span>' : ''}
               
               <div class="w-7 h-7 rounded-full flex items-center justify-center border-2 shadow-md transition-all duration-300 ${
-                isMarkerActive
+                isSelectedVal
+                  ? 'bg-orange-600 border-white text-white scale-110' 
+                  : hasMeals
                   ? 'bg-emerald-700 border-white text-white' 
                   : 'bg-slate-400 border-slate-300 text-slate-500 opacity-60'
               }">
@@ -351,17 +344,22 @@ export default function CustomLandingMap({
               </div>
             </div>
             
-            <div class="bg-slate-900/95 text-white text-[9.5px] font-bold px-1.5 py-0.5 rounded shadow-md border border-slate-800 text-center whitespace-nowrap max-w-[130px] truncate">
+            <div class="${isSelectedVal ? 'bg-orange-700 text-white border-orange-900 shadow-md ring-2 ring-white scale-105' : 'bg-slate-900/95 text-white border-slate-800 shadow'} text-[9.5px] font-bold px-1.5 py-0.5 rounded border text-center whitespace-nowrap max-w-[130px] truncate transition-all">
               ${k.name}
             </div>
           </div>
-        `,
+        `;
+      };
+
+      const kitchenIcon = L.divIcon({
+        html: getKitchenIconHtml(isSelected),
         className: '',
         iconSize: [140, 100],
         iconAnchor: [70, 50]
       });
 
       const marker = L.marker([k.lat, k.lng], { icon: kitchenIcon });
+      markersRef.current[k.id] = marker;
       
       if (!isLocked) {
         const dist = calculateDistance(userCoords.lat, userCoords.lng, k.lat, k.lng);
@@ -418,6 +416,7 @@ export default function CustomLandingMap({
         });
 
         marker.on('popupopen', (e) => {
+          setSelectedKitchenId(k.id);
           const popup = e.popup;
           const container = popup.getElement();
           if (container) {
@@ -429,19 +428,85 @@ export default function CustomLandingMap({
             }
           }
         });
+
+        marker.on('popupclose', () => {
+          setSelectedKitchenId((prev) => prev === k.id ? null : prev);
+        });
       }
       
       marker.addTo(layer);
     });
-  }, [kitchens, nearKitchens, userCoords, isLocked, mapReady, pinsTrigger]);
+  }, [kitchens, userCoords, isLocked, mapReady, pinsTrigger]);
+
+  // Update marker icons dynamically on selection to keep popups intact
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady) return;
+
+    kitchens.forEach((k) => {
+      const marker = markersRef.current[k.id];
+      if (!marker) return;
+
+      const isSelected = selectedKitchenId === k.id;
+      const leavesCount = k.sponsoredCount;
+      const hasMeals = leavesCount > 0;
+
+      const updatedIcon = L.divIcon({
+        html: `
+          <div class="relative flex flex-col items-center select-none pointer-events-auto" style="width: 140px; text-align: center;">
+            ${isSelected ? `
+            <div class="bg-white px-2 py-0.5 rounded-full border border-orange-400 shadow-sm flex items-center justify-center gap-0.5 mb-0.5 transform scale-105">
+              <svg viewBox="0 0 100 100" class="w-2.5 h-2.5 fill-orange-600 stroke-none shrink-0 animate-bounce">
+                <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
+              </svg>
+              <span class="text-[9.5px] font-black font-mono text-orange-900">${leavesCount}</span>
+            </div>
+            ` : `
+            <div class="bg-white px-2 py-0.5 rounded-full border ${hasMeals ? 'border-emerald-300' : 'border-slate-300'} shadow-sm flex items-center justify-center gap-0.5 mb-0.5 transition-transform duration-200 hover:scale-105">
+              <svg viewBox="0 0 100 100" class="w-2.5 h-2.5 ${hasMeals ? 'fill-emerald-700' : 'fill-slate-400'} stroke-none shrink-0">
+                <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
+              </svg>
+              <span class="text-[9.5px] font-black font-mono ${hasMeals ? 'text-emerald-800' : 'text-slate-500'}">${leavesCount}</span>
+            </div>
+            `}
+            
+            <div class="relative flex items-center justify-center mb-0.5">
+              ${isSelected ? '<span class="absolute -inset-2.5 rounded-full bg-orange-400/30 opacity-75 animate-ping"></span>' : hasMeals ? '<span class="absolute -inset-1.5 rounded-full bg-emerald-400/20 opacity-75 animate-pulse"></span>' : ''}
+              
+              <div class="w-7 h-7 rounded-full flex items-center justify-center border-2 shadow-md transition-all duration-300 ${
+                isSelected
+                  ? 'bg-orange-600 border-white text-white scale-110' 
+                  : hasMeals
+                  ? 'bg-emerald-700 border-white text-white' 
+                  : 'bg-slate-400 border-slate-300 text-slate-500 opacity-60'
+              }">
+                <svg viewBox="0 0 100 100" class="w-3.5 h-3.5 fill-current stroke-none">
+                  <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
+                </svg>
+              </div>
+            </div>
+            
+            <div class="${isSelected ? 'bg-orange-700 text-white border-orange-900 shadow-md ring-2 ring-white scale-105' : 'bg-slate-900/95 text-white border-slate-800 shadow'} text-[9.5px] font-bold px-1.5 py-0.5 rounded border text-center whitespace-nowrap max-w-[130px] truncate transition-all">
+              ${k.name}
+            </div>
+          </div>
+        `,
+        className: '',
+        iconSize: [140, 100],
+        iconAnchor: [70, 50]
+      });
+
+      marker.setIcon(updatedIcon);
+    });
+  }, [selectedKitchenId, mapReady]);
 
   // Main interactive renderer layout
   const renderMapContent = (isFS: boolean) => {
     return (
       <div 
-        className={`bg-[#EFECE6] shadow-sm flex flex-col transition-all duration-300 ${
+        className={`bg-[#DDD9D1] shadow-sm flex flex-col transition-all duration-300 ${
           isFS 
-            ? 'fixed inset-0 z-[99999] p-4 md:p-6 w-screen h-screen bg-slate-50' 
+            ? 'fixed inset-0 z-[99999] w-screen h-screen bg-slate-50' 
             : 'relative w-full border border-slate-200 rounded-3xl overflow-hidden h-[480px]'
         }`}
       >
@@ -489,7 +554,7 @@ export default function CustomLandingMap({
 
         {/* 2. LEAFLET CONTAINER CANVAS AND FLOATING CONTROL OVERLAYS */}
         <div 
-          className="relative w-full h-full overflow-hidden bg-[#EFECE6] z-10 flex-grow"
+          className="relative w-full h-full overflow-hidden bg-[#DDD9D1] z-10 flex-grow"
         >
           <div 
             ref={mapRefCallback} 
@@ -506,58 +571,16 @@ export default function CustomLandingMap({
                   <div className="flex items-center gap-2">
                     <Info className="w-4 h-4 text-emerald-700 shrink-0" />
                     <span className="text-[11px] font-medium text-slate-700 leading-snug">
-                      {nearKitchens.length > 0 ? (
+                      {kitchens.filter(k => calculateDistance(userCoords.lat, userCoords.lng, k.lat, k.lng) <= 5 && k.sponsoredCount > 0).length > 0 ? (
                         <span>
-                          Found <strong className="font-extrabold text-emerald-800">{nearKitchens.length}</strong> spots with meals!
+                          <strong className="font-extrabold text-emerald-800">{kitchens.filter(k => calculateDistance(userCoords.lat, userCoords.lng, k.lat, k.lng) <= 5 && k.sponsoredCount > 0).length} {kitchens.filter(k => calculateDistance(userCoords.lat, userCoords.lng, k.lat, k.lng) <= 5 && k.sponsoredCount > 0).length === 1 ? 'kitchen' : 'kitchens'}</strong> within 5km
                         </span>
                       ) : (
                         <span className="text-amber-800 font-bold">
-                          0 spots nearby. Expand scan.
+                          0 kitchens within 5km.
                         </span>
                       )}
                     </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Scan Radius Selector (Top-Right) */}
-              <div className="absolute top-16 right-3 sm:top-4 sm:right-4 z-[400] select-none pointer-events-auto">
-                <div className="bg-white/95 backdrop-blur-md p-1.5 rounded-2xl shadow-xl border border-slate-200/80 flex items-center gap-1.5">
-                  <span className="text-[9.5px] uppercase font-mono tracking-wider text-slate-400 font-bold px-1.5 hidden sm:inline">Scan Radius:</span>
-                  
-                  {/* Mobile Dropdown Select */}
-                  <div className="block sm:hidden relative">
-                    <select
-                      value={radiusKm}
-                      onChange={(e) => setRadiusKm(parseFloat(e.target.value))}
-                      className="bg-emerald-50 hover:bg-emerald-100/80 text-emerald-900 font-mono font-black text-[10px] pl-3 pr-8 py-1 rounded-xl border border-emerald-200/60 appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all shadow-inner lowercase"
-                    >
-                      <option value="0.5">0.5km</option>
-                      <option value="1">1.0km</option>
-                      <option value="3">3.0km</option>
-                      <option value="5">5.0km</option>
-                      <option value="10">10.0km</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-2 flex items-center justify-center pointer-events-none text-emerald-700">
-                      <ChevronDown className="w-3.5 h-3.5 stroke-[3]" />
-                    </div>
-                  </div>
-
-                  {/* Desktop Pills View */}
-                  <div className="hidden sm:flex gap-1">
-                    {[0.5, 1.0, 3.0, 5.0, 10.0].map((r) => (
-                      <button
-                        key={`rad-${r}`}
-                        onClick={() => setRadiusKm(r)}
-                        className={`px-2.5 py-1 rounded-xl text-[9.5px] font-mono font-black transition-all cursor-pointer border ${
-                          radiusKm === r
-                            ? 'bg-emerald-700 text-white border-emerald-800 shadow-sm'
-                            : 'bg-transparent text-slate-600 hover:bg-slate-100/80 border-transparent'
-                        }`}
-                      >
-                        {r === 0.5 ? '0.5km' : `${r}km`}
-                      </button>
-                    ))}
                   </div>
                 </div>
               </div>
