@@ -22,7 +22,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { calculateDistance } from '../data';
 import { Kitchen, MealClaim } from '../types';
 import L from 'leaflet';
@@ -34,6 +34,7 @@ interface SeekerDashboardProps {
   onCancelClaim: (claimId: string) => void;
   initialKitchenId?: string | null;
   onBackToHome?: () => void;
+  isStandalone?: boolean;
 }
 
 export default function SeekerDashboard({
@@ -43,6 +44,7 @@ export default function SeekerDashboard({
   onCancelClaim,
   initialKitchenId = null,
   onBackToHome,
+  isStandalone = false,
 }: SeekerDashboardProps) {
   // Generate daily unique seeker username for absolute anonymity
   const [seekerUsername] = useState<string>(() => {
@@ -89,6 +91,7 @@ export default function SeekerDashboard({
   const userMarkerRef = useRef<L.Marker | null>(null);
   const userCircleRef = useRef<L.Circle | null>(null);
   const kitchensLayerRef = useRef<L.LayerGroup | null>(null);
+  const markersRef = useRef<Record<string, L.Marker>>({});
   const [mapReady, setMapReady] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -135,10 +138,12 @@ export default function SeekerDashboard({
   const selectedKitchen = kitchens.find(k => k.id === selectedKitchenId) || kitchens[0];
 
   // Map & Distance calculation setup
-  const kitchensWithDistance = kitchens.map(k => {
-    const dist = calculateDistance(userCoords.lat, userCoords.lng, k.lat, k.lng);
-    return { ...k, distanceKm: dist };
-  }).sort((a, b) => a.distanceKm - b.distanceKm);
+  const kitchensWithDistance = useMemo(() => {
+    return kitchens.map(k => {
+      const dist = calculateDistance(userCoords.lat, userCoords.lng, k.lat, k.lng);
+      return { ...k, distanceKm: dist };
+    }).sort((a, b) => a.distanceKm - b.distanceKm);
+  }, [kitchens, userCoords]);
 
   // Search filter
   const filteredKitchens = kitchensWithDistance.filter(k => {
@@ -216,6 +221,11 @@ export default function SeekerDashboard({
       zoomControl: false,
       attributionControl: false,
     }).setView([userCoords.lat, userCoords.lng], 14);
+
+    map.on('click', () => {
+      setSelectedKitchenId(null);
+      setPinnedKitchenId(null);
+    });
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -297,11 +307,15 @@ export default function SeekerDashboard({
   // Center maps on selected kitchen location updates
   useEffect(() => {
     if (mapInstanceRef.current && mapReady && selectedKitchen) {
-      mapInstanceRef.current.setView([selectedKitchen.lat, selectedKitchen.lng], 14, {
-        animate: true,
-      });
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setView([selectedKitchen.lat, selectedKitchen.lng], 14, {
+            animate: true,
+          });
+        }
+      }, 100);
     }
-  }, [selectedKitchenId, mapReady]);
+  }, [selectedKitchenId, mapReady, selectedKitchen, mobileViewTab, isMapFullscreen]);
 
   // Adjust Leaflet map's dimensions and invalidate sizes when toggling Fullscreen views
   useEffect(() => {
@@ -335,20 +349,142 @@ export default function SeekerDashboard({
     };
   }, [isMapFullscreen]);
 
-  // Sync active partner kitchen pins
+  // Sync active partner kitchen pins (Initial render and when dataset changes)
   useEffect(() => {
     const map = mapInstanceRef.current;
     const layer = kitchensLayerRef.current;
     if (!map || !layer || !mapReady) return;
 
     layer.clearLayers();
+    markersRef.current = {};
 
     kitchensWithDistance.forEach((k) => {
-      const isSelected = selectedKitchenId === k.id;
       const hasMeals = k.sponsoredCount > 0;
       const leavesCount = k.sponsoredCount;
 
       const kitchenIcon = L.divIcon({
+        html: `
+          <div class="relative flex flex-col items-center select-none pointer-events-auto" style="width: 140px; text-align: center;">
+            <div class="bg-white px-2 py-0.5 rounded-full border ${hasMeals ? 'border-emerald-300' : 'border-slate-300'} shadow-sm flex items-center justify-center gap-0.5 mb-0.5 transition-transform duration-200 hover:scale-105">
+              <svg viewBox="0 0 100 100" class="w-2.5 h-2.5 ${hasMeals ? 'fill-emerald-700' : 'fill-slate-400'} stroke-none shrink-0">
+                <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
+              </svg>
+              <span class="text-[9.5px] font-black font-mono ${hasMeals ? 'text-emerald-800' : 'text-slate-500'}">${leavesCount}</span>
+            </div>
+            
+            <div class="relative flex items-center justify-center mb-0.5">
+              ${hasMeals ? '<span class="absolute -inset-1.5 rounded-full bg-emerald-400/20 opacity-75 animate-pulse"></span>' : ''}
+              <div class="w-7 h-7 rounded-full flex items-center justify-center border-2 shadow-md transition-all duration-300 bg-slate-400 border-slate-300 text-slate-500 opacity-60">
+                <svg viewBox="0 0 100 100" class="w-3.5 h-3.5 fill-current stroke-none">
+                  <path d="M50 10 Q 75 30 75 80 Q 50 90 50 90 Q 50 90 25 80 Q 25 30 50 10 Z" />
+                </svg>
+              </div>
+            </div>
+            <div class="bg-slate-900/95 text-white border-slate-800 shadow text-[9.5px] font-bold px-1.5 py-0.5 rounded border text-center whitespace-nowrap max-w-[130px] truncate transition-all">
+              ${k.name}
+            </div>
+          </div>
+        `,
+        className: '',
+        iconSize: [140, 100],
+        iconAnchor: [70, 50]
+      });
+
+      const marker = L.marker([k.lat, k.lng], { icon: kitchenIcon });
+      markersRef.current[k.id] = marker;
+      
+      const popupContent = `
+        <div class="p-1 font-sans min-w-[210px]" style="font-family: system-ui, -apple-system, sans-serif;">
+          <div style="width: 100%; height: 95px; overflow: hidden; border-radius: 10px; margin-bottom: 8px; position: relative; background-color: #f1f5f9;">
+            <img src="${k.image}" referrerpolicy="no-referrer" style="width: 100%; height: 100%; object-fit: cover; display: block;" onerror="this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';" />
+            <span style="position: absolute; bottom: 6px; right: 6px; background-color: rgba(15, 23, 42, 0.85); color: #fbbf24; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 6px; backdrop-filter: blur(4px); display: flex; align-items: center; gap: 2px; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
+              ★ ${k.rating.toFixed(1)}
+            </span>
+          </div>
+          
+          <h4 class="font-bold text-xs text-slate-900 mb-0.5 leading-snug" style="margin: 0 0 2px 0; font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${k.name}">${k.name}</h4>
+          
+          <p class="text-[11px] text-slate-500 font-semibold mb-2.5 flex items-center gap-1" style="margin: 0 0 10px 0; font-size: 10.5px; font-weight: 500; color: #64748b; display: flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 12px; height: 12px; color: #94a3b8;" class="shrink-0">
+              <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+            <span>${k.distanceKm.toFixed(2)} km away • ${k.cuisine}</span>
+          </p>
+
+          ${!hasMeals ? `
+          <div style="background-color: #fef2f2; border: 1px solid #fee2e2; border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 6px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" style="width: 14px; height: 14px; margin-top: 1px;" class="shrink-0">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span style="font-size: 10px; font-weight: 600; color: #991b1b; line-height: 1.3;">Not serving free meals currently (0 available)</span>
+          </div>
+          ` : ''}
+          
+          <div class="flex flex-col gap-1.5" style="display: flex; flex-direction: column; gap: 6px;">
+            ${hasMeals ? `
+            <button id="pop-meal-btn-${k.id}" style="width: 100%; background-color: #047857; color: white; border: 0; padding: 7px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; transition: background-color 0.15s ease; box-shadow: 0 2px 4px rgba(4, 120, 87, 0.2);" onmouseover="this.style.backgroundColor='#065f46'" onmouseout="this.style.backgroundColor='#047857'">
+              Select this Kitchen
+            </button>
+            ` : `
+            <button disabled style="width: 100%; background-color: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0; padding: 7px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: not-allowed;">
+              Out of Stock
+            </button>
+            `}
+            <a href="https://www.google.com/maps/search/?api=1&query=${k.lat},${k.lng}" target="_blank" rel="noopener noreferrer" style="width: 100%; background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; text-decoration: none; text-align: center; display: inline-block; box-sizing: border-box; transition: background-color 0.15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.05);" onmouseover="this.style.backgroundColor='#e2e8f0'" onmouseout="this.style.backgroundColor='#f1f5f9'">
+              Navigate
+            </a>
+          </div>
+        </div>
+      `;
+      marker.bindPopup(popupContent, {
+        closeButton: false,
+        className: 'custom-leaflet-popup',
+        offset: L.point(0, -10)
+      });
+
+      marker.on('popupopen', (e) => {
+        setSelectedKitchenId(k.id);
+        setPinnedKitchenId(k.id);
+        const popup = e.popup;
+        const container = popup.getElement();
+        if (container) {
+          const btn = container.querySelector(`#pop-meal-btn-${k.id}`);
+          if (btn) {
+            btn.addEventListener('click', () => {
+              setMobileViewTab('list');
+              setIsMapFullscreen(false);
+              
+              const element = document.getElementById(`seeker-eatery-card-${k.id}`);
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              }
+            });
+          }
+        }
+      });
+
+      
+      marker.addTo(layer);
+    });
+  }, [kitchensWithDistance, mapReady]);
+
+  // Update marker icons dynamically on selection to keep popups intact
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady) return;
+
+    kitchensWithDistance.forEach((k) => {
+      const marker = markersRef.current[k.id];
+      if (!marker) return;
+
+      const isSelected = selectedKitchenId === k.id;
+      const leavesCount = k.sponsoredCount;
+      const hasMeals = leavesCount > 0;
+
+      const updatedIcon = L.divIcon({
         html: `
           <div class="relative flex flex-col items-center select-none pointer-events-auto" style="width: 140px; text-align: center;">
             ${isSelected ? `
@@ -393,26 +529,43 @@ export default function SeekerDashboard({
         iconAnchor: [70, 50]
       });
 
-      const marker = L.marker([k.lat, k.lng], { icon: kitchenIcon });
-      marker.on('click', () => {
-        setSelectedKitchenId(k.id);
-        setPinnedKitchenId(k.id);
-        // Switch to list layout on mobile if they want details
-        setMobileViewTab('list');
-      });
-      marker.addTo(layer);
+      marker.setIcon(updatedIcon);
+      
+      // Auto-open popup if not already opened when selected programmatically
+      if (isSelected && !marker.isPopupOpen()) {
+        setTimeout(() => {
+          const mapContainer = mapInstanceRef.current?.getContainer();
+          if (mapContainer && mapContainer.offsetParent !== null) {
+            marker.openPopup();
+          }
+        }, 150);
+      }
+    });
+  }, [kitchensWithDistance, selectedKitchenId, mapReady, mobileViewTab, isMapFullscreen]);
+
+  // Handle polyline to selected kitchen
+  useEffect(() => {
+    const layer = kitchensLayerRef.current;
+    if (!layer || !mapReady) return;
+    
+    layer.eachLayer((l: any) => {
+      if (l instanceof L.Polyline) {
+        layer.removeLayer(l);
+      }
     });
 
-    // Draw routing guideline to current highlight
-    if (selectedKitchen) {
-      L.polyline([[userCoords.lat, userCoords.lng], [selectedKitchen.lat, selectedKitchen.lng]], {
-        color: '#f97316', // Orange 500 / matching selected line
-        weight: 2,
-        dashArray: '6, 6',
-        opacity: 0.65
-      }).addTo(layer);
+    if (selectedKitchenId) {
+      const selected = kitchensWithDistance.find(k => k.id === selectedKitchenId);
+      if (selected) {
+        L.polyline([[userCoords.lat, userCoords.lng], [selected.lat, selected.lng]], {
+          color: '#f97316',
+          weight: 2,
+          dashArray: '6, 6',
+          opacity: 0.65
+        }).addTo(layer);
+      }
     }
-  }, [kitchensWithDistance, selectedKitchenId, userCoords, mapReady]);
+  }, [selectedKitchenId, userCoords, mapReady, kitchensWithDistance]);
 
   // Handle live smartphone GPS query
   const requestLiveGPS = () => {
@@ -460,11 +613,16 @@ export default function SeekerDashboard({
   };
 
   return (
-    <div className="flex flex-col gap-5 max-w-6xl mx-auto h-full">
+    <div className={`flex flex-col gap-5 max-w-6xl mx-auto h-full ${isStandalone ? 'px-4 md:px-6 pt-24' : ''}`}>
       {/* 1. ATHITHI CUSTOM TOP NAV BAR & TOKEN CONTAINER */}
-      <div className="bg-white border border-slate-200/80 px-4 py-3.5 rounded-3xl shadow-sm flex items-center justify-between gap-4">
-        {/* Left branding segment */}
-        <div className="flex items-center gap-3">
+      <div className={
+        isStandalone
+          ? "fixed top-0 inset-x-0 w-full z-[100] bg-[#FAF9F6]/90 backdrop-blur-md border-b border-slate-200/60 h-16 flex items-center justify-center shadow-xs"
+          : "bg-white border border-slate-200/80 px-4 py-3.5 rounded-3xl shadow-sm flex items-center justify-between gap-4"
+      }>
+        <div className={isStandalone ? "w-full max-w-6xl mx-auto px-4 md:px-6 flex items-center justify-between gap-4" : "w-full flex items-center justify-between gap-4 flex-1"}>
+          {/* Left branding segment */}
+          <div className="flex items-center gap-2 md:gap-3">
           {onBackToHome && (
             <button
               onClick={onBackToHome}
@@ -520,6 +678,7 @@ export default function SeekerDashboard({
             <span className="hidden md:inline">{claims.length > 0 ? 'My Active Token' : 'No Claimed Tokens'}</span>
             <ChevronDown className={`w-3.5 h-3.5 transition-transform opacity-75 hidden md:block ${isTokenDrawerOpen ? 'rotate-180' : ''}`} />
           </button>
+        </div>
         </div>
       </div>
 
@@ -617,20 +776,19 @@ export default function SeekerDashboard({
                             <span className="bg-emerald-600/10 text-emerald-800 font-bold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded text-right">
                               meal not yet claimed
                             </span>
-                            <button
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${kitchen?.lat || 0},${kitchen?.lng || 0}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               onClick={() => {
-                                // Simple open map or external link trigger in a real app, 
-                                // here we just focus it
-                                setSelectedKitchenId(claim.kitchenId);
-                                setPinnedKitchenId(claim.kitchenId);
                                 setIsTokenDrawerOpen(false);
                               }}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg border border-emerald-700 cursor-pointer transition-all flex items-center gap-1.5"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg border border-emerald-700 cursor-pointer transition-all flex items-center justify-center gap-1.5"
                               title="Navigate to kitchen"
                             >
                               <MapPin className="w-3.5 h-3.5" />
                               <span className="text-[10px] font-bold uppercase">Navigate</span>
-                            </button>
+                            </a>
                           </div>
                         </div>
 
@@ -694,7 +852,7 @@ export default function SeekerDashboard({
                 : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >
-            Find a Partner Kitchen ({filteredKitchens.length})
+            Partner Kitchens ({filteredKitchens.length})
           </button>
           <button
             type="button"

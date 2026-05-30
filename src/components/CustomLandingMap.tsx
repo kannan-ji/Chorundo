@@ -128,6 +128,10 @@ export default function CustomLandingMap({
       attributionControl: false,
     }).setView([userCoordsRef.current.lat, userCoordsRef.current.lng], zoomLevelRef.current);
 
+    map.on('click', () => {
+      setSelectedKitchenId(null);
+    });
+
     // CARTO Voyager tiles
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -428,10 +432,6 @@ export default function CustomLandingMap({
             }
           }
         });
-
-        marker.on('popupclose', () => {
-          setSelectedKitchenId((prev) => prev === k.id ? null : prev);
-        });
       }
       
       marker.addTo(layer);
@@ -497,6 +497,12 @@ export default function CustomLandingMap({
       });
 
       marker.setIcon(updatedIcon);
+      
+      if (isSelected && !marker.isPopupOpen()) {
+        setTimeout(() => {
+          marker.openPopup();
+        }, 100);
+      }
     });
   }, [selectedKitchenId, mapReady]);
 

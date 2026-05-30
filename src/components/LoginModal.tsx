@@ -97,7 +97,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, initialRol
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4">
         {/* Backdrop overlay */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -183,40 +183,18 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, initialRol
 
             {/* Input fields */}
             {activeTab === 'guest' && (
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">
-                    Display Nickname (Optional)
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Athithi, Friend"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-9 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 font-sans"
-                    />
+              <div className="space-y-3 bg-emerald-50/50 p-4 border border-emerald-100 rounded-xl">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold text-emerald-900 tracking-tight">Complete Anonymity Guaranteed</h4>
+                    <p className="text-[11.5px] text-emerald-700/80 leading-relaxed font-medium">
+                      To preserve pure dignity, we do not ask for any personal identifiers. No names, no numbers, no tracking. 
+                    </p>
+                    <p className="text-[11.5px] text-emerald-700/80 leading-relaxed font-medium">
+                      A unique, random identity will be securely generated on your device for this session so you can claim your meals.
+                    </p>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">
-                    Phone for SMS ticket (Optional)
-                  </label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+91 XXXXX XXXXX"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-9 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 font-sans"
-                    />
-                  </div>
-                  <span className="text-[10px] text-slate-400 block mt-1 leading-normal">
-                    Used only to send you the voucher code via SMS dynamically. No data is stored or tracked.
-                  </span>
                 </div>
               </div>
             )}

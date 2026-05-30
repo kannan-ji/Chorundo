@@ -436,7 +436,7 @@ export default function App() {
 
           {/* 3. AUTHENTICATED SEEKER/GUEST */}
           {currentView === 'guest-dashboard' && (
-            <div className="max-w-6xl mx-auto px-4 md:px-6 pt-6 pb-16">
+            <div className="pb-16 w-full">
               <SeekerDashboard
                 kitchens={kitchens}
                 claims={claims.filter((c) => c.status === 'pending')}
@@ -444,6 +444,7 @@ export default function App() {
                 onCancelClaim={handleCancelClaim}
                 initialKitchenId={activeKitchenId}
                 onBackToHome={handleLogout}
+                isStandalone={true}
               />
             </div>
           )}
