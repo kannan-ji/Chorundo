@@ -154,11 +154,11 @@ export default function SeekerDashboard({
     return matchesSearch;
   });
 
-  // Pin selected kitchen to the absolute top of the list if selected from map
+  // Pin selected kitchen to the absolute top of the list ONLY if it's currently hidden in the "load more" section
   const orderedKitchens = [...filteredKitchens];
   if (pinnedKitchenId) {
     const pinnedIdx = orderedKitchens.findIndex(k => k.id === pinnedKitchenId);
-    if (pinnedIdx > 0) {
+    if (pinnedIdx >= displayCount) {
       const [pinnedItem] = orderedKitchens.splice(pinnedIdx, 1);
       orderedKitchens.unshift(pinnedItem);
     }
@@ -273,8 +273,8 @@ export default function SeekerDashboard({
     const userIcon = L.divIcon({
       html: `
         <div class="relative flex items-center justify-center">
-          <span class="absolute inline-flex h-8 w-8 rounded-full bg-emerald-500/30 opacity-75 animate-ping"></span>
-          <div class="w-8 h-8 bg-emerald-700 rounded-full border-2 border-white flex items-center justify-center shadow-lg">
+          <span class="absolute inline-flex h-8 w-8 rounded-full bg-amber-500/30 opacity-75 animate-ping"></span>
+          <div class="w-8 h-8 bg-amber-600 rounded-full border-2 border-white flex items-center justify-center shadow-lg">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-white">
               <circle cx="12" cy="12" r="10" fill="currentColor" fill-opacity="0.1" />
               <circle cx="12" cy="12" r="4" fill="currentColor" />
@@ -617,7 +617,7 @@ export default function SeekerDashboard({
       {/* 1. ATHITHI CUSTOM TOP NAV BAR & TOKEN CONTAINER */}
       <div className={
         isStandalone
-          ? "fixed top-0 inset-x-0 w-full z-[100] bg-[#FAF9F6]/90 backdrop-blur-md border-b border-slate-200/60 h-16 flex items-center justify-center shadow-xs"
+          ? "fixed top-0 inset-x-0 w-full z-[8000] bg-[#FAF9F6]/90 backdrop-blur-md border-b border-slate-200/60 h-16 flex items-center justify-center shadow-xs"
           : "bg-white border border-slate-200/80 px-4 py-3.5 rounded-3xl shadow-sm flex items-center justify-between gap-4"
       }>
         <div className={isStandalone ? "w-full max-w-6xl mx-auto px-4 md:px-6 flex items-center justify-between gap-4" : "w-full flex items-center justify-between gap-4 flex-1"}>
@@ -840,7 +840,7 @@ export default function SeekerDashboard({
       </AnimatePresence>
 
       {/* 3. PROMINENT FULL HEIGHT MAP AND LEFT LIST SIDEBAR PANEL */}
-      <div className="bg-white rounded-3xl overflow-hidden shadow-sm flex flex-col h-[640px] md:h-[720px] lg:h-[760px] relative">
+      <div className="bg-white rounded-3xl overflow-hidden shadow-sm flex flex-col h-[calc(100vh-160px)] min-h-[500px] relative">
         {/* Mobile View Tab Header */}
         <div className="flex border-b border-slate-100 md:hidden bg-white shrink-0">
           <button

@@ -266,8 +266,8 @@ export default function CustomLandingMap({
     const userIcon = L.divIcon({
       html: `
         <div class="relative flex items-center justify-center">
-          <span class="absolute inline-flex h-8 w-8 rounded-full bg-emerald-500/30 opacity-75 animate-ping"></span>
-          <div class="w-8 h-8 bg-emerald-700 rounded-full border-2 border-white flex items-center justify-center shadow-lg">
+          <span class="absolute inline-flex h-8 w-8 rounded-full bg-amber-500/30 opacity-75 animate-ping"></span>
+          <div class="w-8 h-8 bg-amber-600 rounded-full border-2 border-white flex items-center justify-center shadow-lg">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-white">
               <circle cx="12" cy="12" r="10" fill="currentColor" fill-opacity="0.1" />
               <circle cx="12" cy="12" r="4" fill="currentColor" />

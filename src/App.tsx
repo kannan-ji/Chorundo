@@ -132,6 +132,11 @@ export default function App() {
     localStorage.setItem('chorundo_claims', JSON.stringify(newClaims));
   };
 
+  // Scroll to top when view changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [currentView]);
+
   // Athithi flow: Generate and claim voucher code
   const handleCreateClaim = (kitchenId: string, seekerName?: string) => {
     // 0. Limit to strictly only one pending ticket at a time
