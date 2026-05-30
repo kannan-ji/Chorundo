@@ -425,11 +425,11 @@ export default function SeekerDashboard({
           
           <div class="flex flex-col gap-1.5" style="display: flex; flex-direction: column; gap: 6px;">
             ${hasMeals ? `
-            <button id="pop-meal-btn-${k.id}" style="width: 100%; background-color: #047857; color: white; border: 0; padding: 7px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; transition: background-color 0.15s ease; box-shadow: 0 2px 4px rgba(4, 120, 87, 0.2);" onmouseover="this.style.backgroundColor='#065f46'" onmouseout="this.style.backgroundColor='#047857'">
+            <button id="pop-meal-btn-${k.id}" class="md:hidden" style="width: 100%; background-color: #047857; color: white; border: 0; padding: 7px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; transition: background-color 0.15s ease; box-shadow: 0 2px 4px rgba(4, 120, 87, 0.2);" onmouseover="this.style.backgroundColor='#065f46'" onmouseout="this.style.backgroundColor='#047857'">
               Select this Kitchen
             </button>
             ` : `
-            <button disabled style="width: 100%; background-color: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0; padding: 7px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: not-allowed;">
+            <button disabled class="md:hidden" style="width: 100%; background-color: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0; padding: 7px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: not-allowed;">
               Out of Stock
             </button>
             `}
