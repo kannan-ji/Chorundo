@@ -78,7 +78,7 @@ export default function SeekerDashboard({
   
   // Responsive / Map parameters
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
-  const [mobileViewTab, setMobileViewTab] = useState<'list' | 'map'>('list');
+  const [mobileNavTab, setMobileNavTab] = useState<'map' | 'list'>('map');
   const [isTokenDrawerOpen, setIsTokenDrawerOpen] = useState(false);
   
   // Confetti / Booking animation state
@@ -97,6 +97,7 @@ export default function SeekerDashboard({
   const [searchTerm, setSearchTerm] = useState('');
   const [displayCount, setDisplayCount] = useState(15);
   const listContainerRef = useRef<HTMLDivElement | null>(null);
+  const lastSelectedIdRef = useRef<string | null>(null);
 
   // Sync initial Kitchen selection
   useEffect(() => {
@@ -133,7 +134,7 @@ export default function SeekerDashboard({
         mapInstanceRef.current?.invalidateSize();
       }, 350);
     }
-  }, [isMapFullscreen, mobileViewTab]);
+  }, [isMapFullscreen, mobileNavTab]);
 
   const selectedKitchen = kitchens.find(k => k.id === selectedKitchenId) || kitchens[0];
 
@@ -168,10 +169,18 @@ export default function SeekerDashboard({
 
   // Automatically expand list and scroll to selected eatery when selection changes
   useEffect(() => {
-    if (!selectedKitchenId) return;
+    if (!selectedKitchenId) {
+      lastSelectedIdRef.current = null;
+      return;
+    }
+
+    if (selectedKitchenId === lastSelectedIdRef.current) {
+      return; // Do not scroll if selected eatery didn't change
+    }
 
     const index = orderedKitchens.findIndex(k => k.id === selectedKitchenId);
     if (index !== -1) {
+      lastSelectedIdRef.current = selectedKitchenId;
       let isPaginationUpdated = false;
       if (index >= displayCount) {
         setDisplayCount(index + 1);
@@ -315,7 +324,7 @@ export default function SeekerDashboard({
         }
       }, 100);
     }
-  }, [selectedKitchenId, mapReady, selectedKitchen, mobileViewTab, isMapFullscreen]);
+  }, [selectedKitchenId, mapReady, selectedKitchen, mobileNavTab, isMapFullscreen]);
 
   // Adjust Leaflet map's dimensions and invalidate sizes when toggling Fullscreen views
   useEffect(() => {
@@ -454,7 +463,7 @@ export default function SeekerDashboard({
           const btn = container.querySelector(`#pop-meal-btn-${k.id}`);
           if (btn) {
             btn.addEventListener('click', () => {
-              setMobileViewTab('list');
+              setMobileNavTab('list');
               setIsMapFullscreen(false);
               
               const element = document.getElementById(`seeker-eatery-card-${k.id}`);
@@ -541,7 +550,7 @@ export default function SeekerDashboard({
         }, 150);
       }
     });
-  }, [kitchensWithDistance, selectedKitchenId, mapReady, mobileViewTab, isMapFullscreen]);
+  }, [kitchensWithDistance, selectedKitchenId, mapReady, mobileNavTab, isMapFullscreen]);
 
   // Handle polyline to selected kitchen
   useEffect(() => {
@@ -613,7 +622,7 @@ export default function SeekerDashboard({
   };
 
   return (
-    <div className={`flex flex-col gap-5 max-w-6xl mx-auto h-full ${isStandalone ? 'px-4 md:px-6 pt-24' : ''}`}>
+    <div className={`flex flex-col gap-0 md:gap-5 max-w-6xl mx-auto h-[100dvh] md:h-full pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0 font-sans ${isStandalone ? 'md:px-6 pt-[64px] md:pt-24' : ''}`}>
       {/* 1. ATHITHI CUSTOM TOP NAV BAR & TOKEN CONTAINER */}
       <div className={
         isStandalone
@@ -839,89 +848,65 @@ export default function SeekerDashboard({
         )}
       </AnimatePresence>
 
-      {/* 3. PROMINENT FULL HEIGHT MAP AND LEFT LIST SIDEBAR PANEL */}
-      <div className="bg-white rounded-3xl overflow-hidden shadow-sm flex flex-col h-[calc(100vh-160px)] min-h-[500px] relative">
-        {/* Mobile View Tab Header */}
-        <div className="flex border-b border-slate-100 md:hidden bg-white shrink-0">
-          <button
-            type="button"
-            onClick={() => setMobileViewTab('list')}
-            className={`flex-1 py-3 text-xs font-bold text-center border-b-2 transition-all cursor-pointer ${
-              mobileViewTab === 'list'
-                ? 'border-emerald-600 text-emerald-800 bg-emerald-50/10'
-                : 'border-transparent text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            Partner Kitchens ({filteredKitchens.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileViewTab('map')}
-            className={`flex-1 py-3 text-xs font-bold text-center border-b-2 transition-all cursor-pointer ${
-              mobileViewTab === 'map'
-                ? 'border-emerald-600 text-emerald-800 bg-emerald-50/10'
-                : 'border-transparent text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            View in Map
-          </button>
-        </div>
-
-        <div className="flex-1 flex flex-row overflow-hidden h-full">
+      {/* 3. MAIN CONTENT LAYER */}
+      <div className={`flex flex-col w-full relative h-[calc(100dvh-128px)] ${isStandalone ? 'flex-1 min-h-0 md:h-auto' : 'md:h-[calc(100vh-160px)] md:min-h-[500px]'}`}>
+        <div className="bg-white md:rounded-3xl md:overflow-hidden md:shadow-sm flex flex-col md:flex-row h-full w-full relative">
           
           {/* LEFT SIDE PANEL: eateries list container */}
-          <div className={`w-full md:w-[380px] lg:w-[420px] border-r border-slate-200 shrink-0 flex flex-col bg-slate-100 h-full overflow-hidden ${
-            mobileViewTab === 'list' ? 'flex' : 'hidden md:flex'
+          <div className={`w-full md:w-[380px] lg:w-[420px] bg-slate-100 border-r border-slate-200 shrink-0 flex flex-col h-full z-[20] transition-opacity duration-300 ${
+            mobileNavTab === 'list' ? 'flex absolute inset-0 opacity-100' : 'hidden md:flex md:opacity-100 opacity-0'
           }`}>
-            {/* Header info / Search / Proximity */}
-            <div className="p-4 bg-white flex flex-col gap-3.5 shadow-xs shrink-0">
-              <div className="flex flex-col gap-1.5 items-start">
-                <h3 className="text-sm font-bold text-slate-800 tracking-tight">Find a Partner Kitchen</h3>
-                <div className="bg-emerald-50/50 border border-emerald-100/80 rounded-md px-2 py-1 inline-flex self-start">
-                  <p className="text-[10.5px] text-slate-600">
-                    {kitchensWithDistance.filter(k => k.distanceKm <= 5 && k.sponsoredCount > 0).length > 0 ? (
-                      <span>
-                        <strong className="font-extrabold text-emerald-800">
-                          {kitchensWithDistance.filter(k => k.distanceKm <= 5 && k.sponsoredCount > 0).length} 
-                          {kitchensWithDistance.filter(k => k.distanceKm <= 5 && k.sponsoredCount > 0).length === 1 ? ' kitchen' : ' kitchens'}
-                        </strong> within 5km
-                      </span>
-                    ) : (
-                      <span className="text-amber-800 font-bold">
-                        0 kitchens within 5km.
-                      </span>
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {/* Search interface input */}
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Filter by name, landmark, cuisine..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 pl-9 text-xs font-semibold text-slate-850 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                />
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="absolute right-2.5 top-2.5 text-slate-450 hover:text-slate-600 text-[10px] font-bold"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-            </div>
-
+            
             {/* Scrolling eateries catalog list element */}
             <div 
               ref={listContainerRef} 
-              className="flex-1 overflow-y-auto p-3 space-y-2.5 custom-scrollbar"
+              className="flex-1 overflow-y-auto custom-scrollbar flex flex-col"
             >
-              {displayedKitchens.length === 0 ? (
+              {/* Header info / Search / Proximity */}
+              <div className="p-4 bg-white flex flex-col gap-3.5 shadow-xs shrink-0 md:sticky md:top-0 md:z-10 relative z-0">
+                <div className="flex flex-col gap-1.5 items-start">
+                  <h3 className="text-sm font-bold text-slate-800 tracking-tight">Find a Partner Kitchen</h3>
+                  <div className="bg-emerald-50/50 border border-emerald-100/80 rounded-md px-2 py-1 inline-flex self-start">
+                    <p className="text-[10.5px] text-slate-600">
+                      {kitchensWithDistance.filter(k => k.distanceKm <= 5 && k.sponsoredCount > 0).length > 0 ? (
+                        <span>
+                          <strong className="font-extrabold text-emerald-800">
+                            {kitchensWithDistance.filter(k => k.distanceKm <= 5 && k.sponsoredCount > 0).length} 
+                            {kitchensWithDistance.filter(k => k.distanceKm <= 5 && k.sponsoredCount > 0).length === 1 ? ' kitchen' : ' kitchens'}
+                          </strong> within 5km
+                        </span>
+                      ) : (
+                        <span className="text-amber-800 font-bold">
+                          0 kitchens within 5km.
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Search interface input */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Filter by name, landmark, cuisine..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 pl-9 text-xs font-semibold text-slate-850 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-2.5 top-2.5 text-slate-450 hover:text-slate-600 text-[10px] font-bold"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 space-y-2.5 flex-1">
+                {displayedKitchens.length === 0 ? (
                 <div className="bg-white border border-slate-200/60 p-6 rounded-2xl text-center text-slate-400 my-4 mx-1">
                   <Utensils className="w-8 h-8 text-slate-300 mx-auto mb-2 stroke-[1.2]" />
                   <p className="text-xs font-semibold">No eateries match your search term.</p>
@@ -1066,7 +1051,7 @@ export default function SeekerDashboard({
                                   bookingSuccessId === k.id
                                     ? 'bg-emerald-600 text-white animate-pulse'
                                     : bookingEateryId === k.id
-                                    ? 'bg-slate-150 text-slate-600'
+                                    ? 'bg-slate-100 text-slate-600'
                                     : 'bg-emerald-700 hover:bg-emerald-800 text-white'
                                 }`}
                               >
@@ -1100,19 +1085,20 @@ export default function SeekerDashboard({
                   );
                 })
               )}
-            </div>
-
-            {/* Pagination drawer show more trigger */}
-            {filteredKitchens.length > displayCount && (
-              <div className="p-3 bg-white border-t border-slate-100 shrink-0">
-                <button
-                  onClick={() => setDisplayCount(prev => prev + 15)}
-                  className="bg-slate-50 hover:bg-slate-100 text-[10.5px] font-bold text-slate-600 border border-slate-200/80 rounded-xl py-2 w-full text-center cursor-pointer block"
-                >
-                  Show More Eateries (+{filteredKitchens.length - displayCount} remaining)
-                </button>
               </div>
-            )}
+              
+              {/* Pagination drawer show more trigger */}
+              {filteredKitchens.length > displayCount && (
+                <div className="pt-2 pb-4 px-4 shrink-0">
+                  <button
+                    onClick={() => setDisplayCount(prev => prev + 15)}
+                    className="bg-slate-50 hover:bg-slate-100 text-[10.5px] font-bold text-slate-600 border border-slate-200/80 rounded-xl py-2 w-full text-center cursor-pointer block"
+                  >
+                    Show More Eateries (+{Math.min(filteredKitchens.length - displayCount, 15)} remaining)
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* RIGHT SIDE PANEL: leaflet georeferenced canvas map */}
@@ -1120,7 +1106,7 @@ export default function SeekerDashboard({
             isMapFullscreen
               ? 'fixed inset-0 z-[9990] h-screen w-screen bg-[#DDD9D1] flex flex-col'
               : `flex-1 h-full relative overflow-hidden bg-[#DDD9D1] ${
-                  mobileViewTab === 'map' ? 'block' : 'hidden md:block'
+                  mobileNavTab === 'map' ? 'flex' : 'hidden md:flex'
                 }`
           }`}>
 
@@ -1131,7 +1117,7 @@ export default function SeekerDashboard({
               
               {/* GPS tracker warnings and error overlays inside map frame directly */}
               {gpsError && (
-                <div className="absolute bottom-16 left-3 right-3 z-[400] z-index-[401]">
+                <div className="absolute top-4 left-3 right-3 z-[400] z-index-[401]">
                   <div className="bg-red-50 text-red-800 text-[10.5px] py-1.5 px-3 rounded-xl border border-red-100 shadow-lg flex items-center justify-between gap-1">
                     <span className="truncate">{gpsError}</span>
                     <button onClick={() => setGpsError(null)} className="text-[12px] font-black hover:text-slate-800 px-1 cursor-pointer">✕</button>
@@ -1144,7 +1130,7 @@ export default function SeekerDashboard({
                 <button
                   type="button"
                   onClick={() => setIsMapFullscreen(prev => !prev)}
-                  className="bg-white hover:bg-slate-50 active:scale-95 text-slate-800 p-2.5 rounded-2xl shadow-md border border-slate-200/80 flex items-center justify-center gap-1.5 font-sans font-bold text-[10px] cursor-pointer transition-all uppercase tracking-wider"
+                  className="bg-white hover:bg-slate-50 active:scale-95 text-slate-800 p-2.5 rounded-2xl shadow-md border border-slate-200/80 flex items-center justify-center gap-1.5 font-sans font-bold text-[10px] cursor-pointer transition-all uppercase tracking-wider hidden md:flex"
                   title={isMapFullscreen ? "Exit Fullscreen" : "View Fullscreen"}
                 >
                   {isMapFullscreen ? (
@@ -1166,11 +1152,11 @@ export default function SeekerDashboard({
                 <button
                   onClick={requestLiveGPS}
                   disabled={isLoadingGPS}
-                  className="bg-emerald-700 hover:bg-emerald-800 active:scale-95 disabled:opacity-80 text-white px-3.5 py-2  rounded-xl shadow-lg border border-emerald-650 flex items-center gap-1.5 text-[10px] font-bold cursor-pointer transition-all uppercase tracking-wider"
+                  className="bg-emerald-700 hover:bg-emerald-800 active:scale-95 disabled:opacity-80 text-white px-3.5 py-2 rounded-xl shadow-lg border border-emerald-650 flex items-center gap-1.5 text-[10px] font-bold cursor-pointer transition-all uppercase tracking-wider"
                   title="Detect Device Location Coordinates"
                 >
                   <Navigation className={`w-3.5 h-3.5 shrink-0 ${isLoadingGPS ? 'animate-spin' : ''}`} />
-                  <span>{isLoadingGPS ? 'LOCATING...' : 'MY LOCATION'}</span>
+                  <span className="hidden md:inline">{isLoadingGPS ? 'LOCATING...' : 'MY LOCATION'}</span>
                 </button>
               </div>
             </div>
@@ -1178,6 +1164,32 @@ export default function SeekerDashboard({
         </div>
 
       </div>
+
+      {/* MOBILE BOTTOM NAVIGATION BAR */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-[9000] md:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-[env(safe-area-inset-bottom)]">
+        <div className="flex justify-around items-center h-16">
+          <button 
+            type="button"
+            onClick={() => setMobileNavTab('map')}
+            className={`flex flex-col items-center justify-center gap-1 w-full h-full ${mobileNavTab === 'map' ? 'text-emerald-700 bg-emerald-50/50' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <MapPin className="w-5 h-5" />
+            <span className="text-[9px] font-extrabold uppercase tracking-widest">Map</span>
+          </button>
+          
+          <div className="w-px h-8 bg-slate-200" />
+          
+          <button 
+            type="button"
+            onClick={() => setMobileNavTab('list')}
+            className={`flex flex-col items-center justify-center gap-1 w-full h-full ${mobileNavTab === 'list' ? 'text-emerald-700 bg-emerald-50/50' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <Utensils className="w-5 h-5" />
+            <span className="text-[9px] font-extrabold uppercase tracking-widest">Eateries</span>
+          </button>
+        </div>
+      </div>
+
     </div>
   );
 }

@@ -441,7 +441,7 @@ export default function App() {
 
           {/* 3. AUTHENTICATED SEEKER/GUEST */}
           {currentView === 'guest-dashboard' && (
-            <div className="pb-16 w-full">
+            <div className="pb-16 md:pb-0 w-full h-[100dvh]">
               <SeekerDashboard
                 kitchens={kitchens}
                 claims={claims.filter((c) => c.status === 'pending')}
@@ -456,13 +456,14 @@ export default function App() {
 
           {/* 4. AUTHENTICATED SPONSOR/DONOR */}
           {currentView === 'donor-dashboard' && (
-            <div className="max-w-6xl mx-auto px-4 md:px-6 pt-6 pb-16">
+            <div className="pb-16 w-full">
               <DonorDashboard
                 kitchens={kitchens}
                 donations={donations}
                 onSponsorMeals={handleSponsorMeals}
                 onBackToHome={handleLogout}
                 donorName={loggedInUser || 'Sponsor Partner'}
+                isStandalone={true}
               />
             </div>
           )}
