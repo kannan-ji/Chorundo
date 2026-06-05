@@ -30,7 +30,8 @@ import {
   FileText,
   Printer,
   Download,
-  Pencil
+  Pencil,
+  Settings as SettingsIcon
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -870,18 +871,18 @@ K. Ramachandran, Finance Trustee Atithi Division.
           {/* Profile Settings Options Menu */}
           <div className="bg-white border border-slate-200/80 rounded-3xl overflow-hidden shadow-xs select-none">
              <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-               <h4 className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                 <Heart className="w-3.5 h-3.5 text-emerald-600" /> Account Settings
-               </h4>
+                <h4 className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <SettingsIcon className="w-3.5 h-3.5" /> Account Settings
+                </h4>
              </div>
-             <div className="divide-y divide-slate-100">
+             <div className="divide-y divide-slate-100 font-sans">
                 <button
                   type="button"
                   onClick={() => setIsEditingProfile(true)}
-                  className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors text-left cursor-pointer"
+                  className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors text-left cursor-pointer group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-1.5 bg-slate-100 rounded-lg text-slate-500">
+                    <div className="p-1.5 bg-slate-100 rounded-lg text-slate-500 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
                       <Heart className="w-4 h-4" />
                     </div>
                     <div>
@@ -889,15 +890,15 @@ K. Ramachandran, Finance Trustee Atithi Division.
                       <p className="text-[9px] text-slate-400 font-medium tracking-wide mt-0.5">Manage your public patron profile</p>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsEditingPaymentTax(true)}
-                  className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors text-left cursor-pointer"
+                  className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors text-left cursor-pointer group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-1.5 bg-slate-100 rounded-lg text-slate-500">
+                    <div className="p-1.5 bg-slate-100 rounded-lg text-slate-500 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
                       <ShieldCheck className="w-4 h-4" />
                     </div>
                     <div>
@@ -905,23 +906,23 @@ K. Ramachandran, Finance Trustee Atithi Division.
                       <p className="text-[9px] text-slate-400 font-medium tracking-wide mt-0.5">Secure payment linkage and PAN details</p>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsHistoryDrawerOpen(true)}
-                  className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors text-left cursor-pointer"
+                  className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors text-left cursor-pointer group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-1.5 bg-slate-100 rounded-lg text-slate-500">
-                      <History className="w-4 h-4 text-emerald-600" />
+                    <div className="p-1.5 bg-slate-100 rounded-lg text-slate-500 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
+                      <History className="w-4 h-4" />
                     </div>
                     <div>
                       <h5 className="text-[11px] font-bold text-slate-800">Sponsorship History</h5>
                       <p className="text-[9px] text-slate-400 font-medium tracking-wide mt-0.5">Explore your-full contribution ledger</p>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
                 </button>
              </div>
           </div>

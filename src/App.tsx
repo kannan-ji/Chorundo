@@ -218,9 +218,10 @@ export default function App() {
 
   // Kitchen Manager flow: Enter voucher code and claim food
   const handleRedeemCode = (code: string, kitchenId: string): boolean | string => {
+    const normalizedId = kitchenId.trim().toLowerCase();
     // Find voucher matching code, kitchen, and status pending
     const activeClaim = claims.find(
-      (c) => c.code === code && c.kitchenId === kitchenId && c.status === 'pending'
+      (c) => c.code === code && c.kitchenId.toLowerCase() === normalizedId && c.status === 'pending'
     );
 
     if (!activeClaim) {
@@ -234,7 +235,7 @@ export default function App() {
 
     // Update actual kitchen served count
     const updatedKitchens = kitchens.map((k) =>
-      k.id === kitchenId ? { ...k, claimedCount: k.claimedCount + 1 } : k
+      k.id.toLowerCase() === normalizedId ? { ...k, claimedCount: k.claimedCount + 1 } : k
     );
 
     persistState(updatedKitchens, donations, updatedClaims);
@@ -243,13 +244,14 @@ export default function App() {
 
   // Kitchen Manager flow: Log Walk-in Athithi (No digital footprint, direct support 3.2.2)
   const handleLogWalkIn = (kitchenId: string): boolean => {
-    const targetKitchen = kitchens.find((k) => k.id === kitchenId);
+    const normalizedId = kitchenId.trim().toLowerCase();
+    const targetKitchen = kitchens.find((k) => k.id.toLowerCase() === normalizedId);
     if (!targetKitchen || targetKitchen.sponsoredCount <= 0) return false;
 
     // 1. Create walk-in claim
     const newClaim: MealClaim = {
       id: `claim-${Date.now()}`,
-      kitchenId,
+      kitchenId: targetKitchen.id,
       kitchenName: targetKitchen.name,
       code: 'OFFLINE-WALKIN',
       status: 'redeemed',
@@ -260,7 +262,7 @@ export default function App() {
 
     // 2. Decrement sponsored pool & increment claimed count
     const updatedKitchens = kitchens.map((k) =>
-      k.id === kitchenId
+      k.id.toLowerCase() === normalizedId
         ? {
             ...k,
             sponsoredCount: k.sponsoredCount - 1,
@@ -410,6 +412,7 @@ export default function App() {
                       <KitchenDashboard
                         kitchens={kitchens}
                         claims={claims}
+                        donations={donations}
                         onRedeemCode={handleRedeemCode}
                         onLogWalkIn={handleLogWalkIn}
                         initialKitchenId={activeKitchenId}
@@ -470,15 +473,17 @@ export default function App() {
 
           {/* 5. AUTHENTICATED PARTNER KITCHEN */}
           {currentView === 'kitchen-dashboard' && (
-            <div className="max-w-6xl mx-auto px-4 md:px-6 pt-6 pb-16">
+            <div className="pb-16 w-full">
               <KitchenDashboard
                 kitchens={kitchens}
                 claims={claims}
+                donations={donations}
                 onRedeemCode={handleRedeemCode}
                 onLogWalkIn={handleLogWalkIn}
                 initialKitchenId={activeKitchenId}
                 onBackToHome={handleLogout}
                 activeKitchenName={kitchens.find(k => k.id === activeKitchenId)?.name || 'Partner Kitchen'}
+                isStandalone={true}
               />
             </div>
           )}

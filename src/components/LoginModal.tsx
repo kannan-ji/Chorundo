@@ -15,11 +15,12 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, initialRol
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [selectedKitchenId, setSelectedKitchenId] = useState('kitchen-1'); // Default for kitchen login
+  const [selectedKitchenId, setSelectedKitchenId] = useState(''); // Default for kitchen login
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [pwd, setPwd] = useState('');
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [showTestHelpers, setShowTestHelpers] = useState(false);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -86,7 +87,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, initialRol
     
     // Simulate successful login/registration
     if (activeTab === 'kitchen') {
-      onLoginSuccess('kitchen', displayName, selectedKitchenId);
+      onLoginSuccess('kitchen', displayName, selectedKitchenId.trim().toLowerCase());
     } else if (activeTab === 'donor') {
       onLoginSuccess('donor', displayName);
     } else {
@@ -277,18 +278,22 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, initialRol
               <div className="space-y-3">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">
-                    Select Your Registered Kitchen
+                    Registered Kitchen ID
                   </label>
-                  <select
-                    value={selectedKitchenId}
-                    onChange={(e) => setSelectedKitchenId(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-sans focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20"
-                  >
-                    <option value="kitchen-1">Janakeeya Oottupura (Aluva)</option>
-                    <option value="kitchen-2">Thanal Malabar Eatery (Kochi)</option>
-                    <option value="kitchen-3">Sadhya Bhavan Social (Trivandrum)</option>
-                    <option value="kitchen-4">Malaya Green Leaf Mess (Kozhikode)</option>
-                  </select>
+                  <div className="relative font-sans">
+                    <UserCheck className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                    <input
+                      required
+                      type="text"
+                      value={selectedKitchenId}
+                      onChange={(e) => setSelectedKitchenId(e.target.value)}
+                      placeholder="e.g. KITCHEN-ALUVA-102"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-9 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
+                  <p className="text-[9px] text-slate-400 mt-1.5 px-1">
+                    Enter your unique partner ID. <span className="font-semibold text-slate-500">Hint: use "kitchen-1" to "kitchen-4" for testing.</span>
+                  </p>
                 </div>
 
                 <div>
@@ -306,6 +311,62 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, initialRol
                       className="w-full bg-white border border-slate-200 rounded-xl px-9 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
                     />
                   </div>
+                </div>
+
+                {/* INTERACTIVE TEST CREDENTIALS EXPANDABLE ACCORDION */}
+                <div className="pt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowTestHelpers(!showTestHelpers)}
+                    className="w-full py-1.5 px-2 bg-slate-50 hover:bg-slate-100/90 text-slate-500 hover:text-slate-700 rounded-lg text-[10px] font-mono font-bold uppercase tracking-widest flex items-center justify-between transition-colors border border-slate-200/50 cursor-pointer"
+                  >
+                    <span>🔑 Click to Autofill Test Accounts</span>
+                    <span className="text-xs">{showTestHelpers ? '▲' : '▼'}</span>
+                  </button>
+
+                  <AnimatePresence>
+                    {showTestHelpers && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden bg-white border border-slate-100 rounded-xl mt-1.5 divide-y divide-slate-100 shadow-3xs"
+                      >
+                        {[
+                          { id: 'kitchen-1', pass: 'sadhya123', name: 'Janakeeya Oottupura', loc: 'Aluva Hub' },
+                          { id: 'kitchen-2', pass: 'thanal123', name: 'Thanal Malabar Eatery', loc: 'Kochi Hub' },
+                          { id: 'kitchen-3', pass: 'bhavan123', name: 'Sadhya Bhavan', loc: 'Trivandrum Hub' },
+                          { id: 'kitchen-4', pass: 'green123', name: 'Malaya Green Leaf', loc: 'Kozhikode' },
+                        ].map((acct) => (
+                          <div
+                            key={acct.id}
+                            onClick={() => {
+                              setSelectedKitchenId(acct.id);
+                              setPwd(acct.pass);
+                              setShowTestHelpers(false);
+                            }}
+                            className="p-2 flex items-center justify-between hover:bg-emerald-50/30 transition-colors cursor-pointer text-left"
+                          >
+                            <div>
+                              <div className="text-[10px] font-black font-sans text-slate-800 leading-tight">
+                                {acct.name}
+                              </div>
+                              <div className="text-[8.5px] text-slate-400 mt-0.5">
+                                {acct.loc} • Code: <code className="bg-slate-50 px-1 py-0.2 rounded font-mono text-emerald-700 font-bold">{acct.id}</code>
+                              </div>
+                            </div>
+                            <span className="text-[8px] font-mono font-extrabold uppercase tracking-widest bg-emerald-50 text-emerald-700 border border-emerald-100 px-1.5 py-0.5 rounded-lg select-none">
+                              Fill
+                            </span>
+                          </div>
+                        ))}
+                        <div className="p-2 select-text bg-slate-50/50 text-[8px] text-slate-400 tracking-wide font-medium leading-normal">
+                          💡 Stored key-values are cached in `/TEST_CREDENTIALS.md` at root for offline verification.
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
             )}

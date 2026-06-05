@@ -26,6 +26,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { calculateDistance } from '../data';
 import { Kitchen, MealClaim } from '../types';
 import L from 'leaflet';
+import { VoucherQRCode } from './VoucherQRCode';
 
 interface SeekerDashboardProps {
   kitchens: Kitchen[];
@@ -801,12 +802,15 @@ export default function SeekerDashboard({
                           </div>
                         </div>
 
-                        <div className="text-center bg-slate-50 border border-slate-200/60 py-4 px-3 rounded-xl mb-4">
-                          <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-black">verification code</p>
-                          <p className="text-3xl font-black font-mono text-emerald-800 tracking-widest mt-1.5 select-all select-none">
-                            {claim.code}
-                          </p>
-                          <p className="text-[9.5px] text-slate-400 mt-2 font-mono">Present this to the restaurant staff billing counter</p>
+                        <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-xl mb-4 text-center space-y-4">
+                          <VoucherQRCode value={claim.code} />
+                          <div>
+                            <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-black leading-none mb-1">verification code</p>
+                            <p className="text-3xl font-black font-mono text-emerald-800 tracking-widest select-all">
+                              {claim.code}
+                            </p>
+                            <p className="text-[9.5px] text-slate-400 mt-2 font-mono">Scan QR code, or present this code to the restaurant staff counter</p>
+                          </div>
                         </div>
 
                         <div className="space-y-2">
