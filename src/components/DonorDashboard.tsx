@@ -236,6 +236,23 @@ export default function DonorDashboard({
   const [customLegalName, setCustomLegalName] = useState('');
   const [receiptDownloaded, setReceiptDownloaded] = useState(false);
 
+  // Modal and drawer trigger states
+  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
+  const [isEditingPaymentTax, setIsEditingPaymentTax] = useState(false);
+
+  // Temporary payment settings states
+  const [tempPan, setTempPan] = useState(donorPan);
+  const [tempAddress, setTempAddress] = useState(donorAddress);
+  const [tempUPI, setTempUPI] = useState('donor@okhdfc');
+  const [tempCard, setTempCard] = useState('•••• •••• •••• 4581');
+
+  useEffect(() => {
+    if (isEditingPaymentTax) {
+      setTempPan(donorPan);
+      setTempAddress(donorAddress);
+    }
+  }, [isEditingPaymentTax, donorPan, donorAddress]);
+
   // Sync custom name when modal opens
   useEffect(() => {
     if (selectedReceiptForTax) {
@@ -617,6 +634,83 @@ K. Ramachandran, Finance Trustee Atithi Division.
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, [donations, activeDonorName]);
 
+  const renderContributionHistory = () => (
+    <div className="space-y-5 pb-8">
+      <div className="flex items-center justify-between pointer-events-none select-none">
+        <div className="flex items-center gap-2">
+          <div className="p-2 bg-emerald-50 rounded-xl text-emerald-800 animate-none">
+            <History className="w-4.5 h-4.5 text-emerald-600" />
+          </div>
+          <div>
+            <h4 className="text-sm font-black text-slate-850">Donation Highlights</h4>
+            <p className="text-[10px] text-slate-400 mt-0.5">Recent sponsorships and actions</p>
+          </div>
+        </div>
+        <span className="font-mono text-[9px] bg-slate-100 text-slate-500 border border-slate-200 rounded-xl px-2.5 py-1">
+          {sortedPastDonations.length} total actions
+        </span>
+      </div>
+
+      <div className="divide-y divide-slate-100 select-text leading-relaxed text-xs">
+        {sortedPastDonations.length === 0 ? (
+          <div className="text-center py-12 select-none text-slate-400 font-sans">
+            <Heart className="w-10 h-10 text-slate-200 mx-auto mb-2 opacity-60" />
+            <p className="text-xs font-bold text-slate-755">No sponsorships completed yet</p>
+            <p className="text-[10px] text-slate-400 mt-1 max-w-[280px] mx-auto font-light leading-normal">
+              Sponsor any individual partner eatery from the grid list or the Smart Allocator to see live certified receipts.
+            </p>
+          </div>
+        ) : (
+          <>
+          {sortedPastDonations.slice(0, historyDisplayCount).map((d, idx) => (
+            <div key={d.id} className={`py-4 flex flex-col sm:flex-row gap-4 items-start justify-between ${idx === 0 ? 'pt-0' : ''}`}>
+              <div className="space-y-1.5 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-600 shrink-0" />
+                  <h4 className="font-extrabold text-slate-800 text-[12.5px] leading-none">{d.kitchenName}</h4>
+                  <span className="font-mono text-[9px] text-slate-400 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded-md shrink-0">
+                    {new Date(d.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                
+                <p className="text-[11.5px] text-slate-600 leading-relaxed font-light">
+                  Deposited <strong className="font-semibold text-emerald-800">{d.mealsCount} active meals</strong>. Direct check sum <span className="font-mono">₹{d.amount}</span> cleared.
+                </p>
+
+                {d.message && (
+                  <div className="p-2 border border-emerald-100/60 bg-emerald-50/15 text-emerald-950 rounded-xl text-[10.5px] italic font-medium">
+                    "{d.message}"
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col items-stretch sm:items-end gap-1 shrink-0 w-full sm:w-auto select-none">
+                <span className="text-[11px] font-mono font-black text-slate-700 bg-slate-50 border border-slate-200 px-3 py-1 rounded-xl block text-center">
+                  ₹{d.amount} funded
+                </span>
+                <span className="text-[8px] font-mono text-emerald-700 font-extrabold tracking-wider bg-emerald-50 border border-emerald-100/50 px-2 py-0.5 rounded-md block text-center uppercase">
+                  ✓ INSTANT CLEARING
+                </span>
+              </div>
+            </div>
+          ))}
+          {sortedPastDonations.length > historyDisplayCount && (
+            <div className="pt-4 shrink-0">
+              <button
+                type="button"
+                onClick={() => setHistoryDisplayCount(prev => prev + 10)}
+                className="bg-slate-50 hover:bg-slate-100 text-[10.5px] font-bold text-slate-600 border border-slate-200/80 rounded-xl py-2 w-full text-center cursor-pointer block"
+              >
+                Show More History (+{Math.min(sortedPastDonations.length - historyDisplayCount, 10)} remaining)
+              </button>
+            </div>
+          )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+
   // Render Layout
   return (
     <div className={`min-h-screen bg-slate-50/60 pb-28 md:pb-16 font-sans ${isStandalone ? 'pt-24' : 'pt-4'}`}>
@@ -748,8 +842,8 @@ K. Ramachandran, Finance Trustee Atithi Division.
               <div className="p-1.5 bg-emerald-50 text-emerald-700 rounded-lg shrink-0">
                 <ShieldCheck className="w-4 h-4" />
               </div>
-              <p className="text-[10px] font-mono font-black text-slate-404 uppercase tracking-widest text-slate-400">
-                Contribution Ledger & Exemption
+              <p className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-widest">
+                Donation Highlights
               </p>
             </div>
 
@@ -770,25 +864,6 @@ K. Ramachandran, Finance Trustee Atithi Division.
                   <span className="text-sm font-black font-mono text-slate-800">₹{totalSponsorshipsAmount.toLocaleString()}</span>
                 </div>
               </div>
-            </div>
-
-            {/* Action button inside the single card to download donation invoice for tax purposes */}
-            <div className="pt-2">
-              <button
-                onClick={() => {
-                  setSelectedReceiptForTax(null);
-                  setShowConsolidatedTaxReceipt(true);
-                  setReceiptDownloaded(false);
-                }}
-                className="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 hover:text-emerald-900 border border-emerald-150 hover:border-emerald-250 py-2.5 rounded-xl text-xs font-bold font-sans flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] shadow-3xs cursor-pointer group"
-                title="Generate and Download 80G Tax Invoice"
-              >
-                <FileText className="w-3.5 h-3.5 text-emerald-705 group-hover:scale-110 transition-transform" />
-                <span>Download Tax Invoice</span>
-              </button>
-              <p className="text-[8px] text-center text-slate-400 mt-1.5 font-light leading-normal">
-                Generates a Section 80G compliant Indian income tax deduction receipt.
-              </p>
             </div>
           </div>
 
@@ -818,6 +893,7 @@ K. Ramachandran, Finance Trustee Atithi Division.
                 </button>
                 <button
                   type="button"
+                  onClick={() => setIsEditingPaymentTax(true)}
                   className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors text-left cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
@@ -831,6 +907,22 @@ K. Ramachandran, Finance Trustee Atithi Division.
                   </div>
                   <ChevronRight className="w-4 h-4 text-slate-400" />
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setIsHistoryDrawerOpen(true)}
+                  className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors text-left cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-1.5 bg-slate-100 rounded-lg text-slate-500">
+                      <History className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h5 className="text-[11px] font-bold text-slate-800">Sponsorship History</h5>
+                      <p className="text-[9px] text-slate-400 font-medium tracking-wide mt-0.5">Explore your-full contribution ledger</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                </button>
              </div>
           </div>
 
@@ -839,9 +931,225 @@ K. Ramachandran, Finance Trustee Atithi Division.
         {/* ==================== RIGHT CONTENT PANE (Fully scrollable interactive layers) ==================== */}
         <div className={`flex-1 w-full space-y-8 min-w-0 ${mobileNavTab !== 'profile' ? 'block' : 'hidden md:block'}`}>
           
+          {/* ECOSYSTEM COLUMN LAYOUT (Widescreen 2-column, Mobile tabbed) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            
+            {/* COLUMN A: QUICK ACTIONS & ALERTS (Left column on desktop, quick actions tab on mobile) */}
+            <div className={`space-y-6 ${mobileNavTab === 'quick_actions' ? 'block' : 'hidden lg:block'}`}>
+              
+              {/* STACKED CARD 1: DIRECT-AID SMART BUNDLE ALLOCATOR */}
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 mb-1 select-none">
+                <div className="p-2 bg-emerald-50 rounded-xl text-emerald-800">
+                  <Sparkle className="w-5 h-5 animate-spin-slow text-emerald-600" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-slate-805 leading-tight text-slate-800">Direct-Aid Smart Bundle</h4>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Automated deficit balance mitigation</p>
+                </div>
+              </div>
 
-          {/* SPONSORING CORE: PARTNERS REGISTER WITH LIVE THERMOMETERS */}
-          <div className={`space-y-4 ${mobileNavTab === 'explore' ? 'block' : 'hidden md:block'}`}>
+              <p className="text-[11px] text-slate-550 leading-relaxed font-light select-none text-slate-500">
+                No preference? Our direct algorithm automatically loops and allocates your chosen meals count evenly to the <span className="font-semibold text-emerald-800">top 5 kitchens running lowest on active food stock</span> right now.
+              </p>
+
+              {/* Success, processing, or form status logic */}
+              {bundleSuccess ? (
+                <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl text-center select-none space-y-2">
+                  <div className="w-9 h-9 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-650">
+                    <Check className="w-5 h-5 stroke-[3.5]" />
+                  </div>
+                  <h4 className="text-xs font-bold text-emerald-950">Allocation Bundle Complete!</h4>
+                  <p className="text-[10px] text-emerald-800 leading-normal font-light">
+                    Your allocation has finished processing. Check the Direct Session logs in the next card blocks below to view receipts.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setBundleSuccess(false)}
+                    className="mt-2 text-[9px] font-black uppercase tracking-wider text-white bg-slate-900 px-3.5 py-1.5 rounded-lg hover:bg-slate-850"
+                  >
+                    Load New Bundle System
+                  </button>
+                </div>
+              ) : bundleSponsoring ? (
+                <div className="p-5 border border-dashed border-slate-200 rounded-2xl text-center space-y-3.5 select-none animate-pulse">
+                  <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-emerald-600 animate-spin mx-auto" />
+                  <div>
+                    <h5 className="text-[11px] font-bold text-slate-800 font-sans">Executing sequential thread checks...</h5>
+                    <div className="text-[9px] font-mono text-emerald-800 mt-1 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100 max-w-full truncate inline-block">
+                      {bundleStep || 'Scanning global ledger pools...'}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSmartBundleSubmit} className="space-y-4">
+                  <div>
+                    <span className="block text-[8px] font-mono text-slate-400 uppercase tracking-widest font-black mb-2 select-none">Standard Allocation Pool (meals)</span>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[25, 50, 100, 250].map((num) => (
+                        <button
+                          type="button"
+                          key={num}
+                          onClick={() => {
+                            setBundleSize(num);
+                            setCustomBundleCount('');
+                          }}
+                          className={`py-2 px-1 rounded-xl border transition-all text-center cursor-pointer font-mono text-xs ${
+                            bundleSize === num && !customBundleCount
+                              ? 'border-emerald-600 bg-emerald-50/40 font-black text-emerald-950'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-350'
+                          }`}
+                        >
+                          <span className="block font-sans font-bold text-[10px]">{num} Meals</span>
+                          <span className="text-[8px] text-slate-400 block mt-0.5">₹{num * 40}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="mt-1.5 flex items-center justify-between gap-1 border border-slate-250/70 bg-white p-1 rounded-xl">
+                      <span className="text-[9px] text-slate-400 pl-1.5">Custom volume loop:</span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <input
+                          type="number"
+                          placeholder="e.g. 150"
+                          value={customBundleCount}
+                          min="1"
+                          onChange={(e) => setCustomBundleCount(e.target.value)}
+                          className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 text-center font-mono font-bold text-xs w-16 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                        />
+                        <span className="text-[8.5px] font-mono text-slate-404 uppercase pr-1.5">meals</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Smart Allocation Info Summary panel */}
+                  <div className="bg-emerald-50/50 border border-emerald-100/50 p-3 rounded-2xl select-none text-[9.5px] text-emerald-800 leading-normal space-y-1">
+                    <p className="font-extrabold text-emerald-950 flex items-center gap-1 font-mono uppercase text-[8px] tracking-wider mb-1">
+                      smart distribution forecast
+                    </p>
+                    <p>• Allocates <span className="font-bold underline">{Math.floor((parseInt(customBundleCount) || bundleSize) / 5)} meals</span> directly to top 5 lowest-stock locations.</p>
+                    <p>• Simulated net cost: <span className="font-bold font-mono">₹{(parseInt(customBundleCount) || bundleSize) * 40}</span> at direct cost rates (₹40/meal).</p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-[11px] p-3 rounded-xl transition-all shadow-xs tracking-wider flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                  >
+                    <Sparkle className="w-4 h-4 shrink-0 animate-spin-slow" />
+                    <span>SPONSOR SMART BUNDLE (₹{(parseInt(customBundleCount) || bundleSize) * 40})</span>
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* COLUMN B: CRITICAL URGENCY RADAR */}
+            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 mb-1 select-none">
+                <div className="p-2 bg-rose-50 rounded-xl text-rose-700">
+                  <AlertTriangle className="w-5 h-5 text-rose-600 animate-bounce-slow" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-rose-950 leading-tight text-slate-800 font-sans">Critical Urgency Radar</h4>
+                  <p className="text-[10px] text-slate-450 mt-0.5 font-mono">Real-time depletion alerts</p>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-500 leading-relaxed font-light select-none">
+                The radar shows partner kitchens whose food reserves are under <span className="font-semibold text-rose-700 bg-rose-50 px-1 py-0.5 rounded-sm">10 pieces</span>. Intervene immediately to restore standard food security.
+              </p>
+
+              {/* Urgency List */}
+              <div className="space-y-2.5 pr-1 font-sans text-left">
+                {kitchensWithDistance.filter(k => k.sponsoredCount < 10).length === 0 ? (
+                  <div className="border border-dashed border-slate-200 p-6 rounded-2xl text-center select-none text-slate-400">
+                    <Check className="w-8 h-8 text-emerald-600 bg-emerald-50 rounded-full p-2 mx-auto mb-2" />
+                    <h5 className="text-[11px] font-bold text-slate-800">Ecosystem Stock Safe!</h5>
+                    <p className="text-[9.5px] text-slate-450 leading-relaxed mt-0.5">
+                      Excellent, all our kitchen spots have 10+ available meals prepaid. No critical deficiencies detected.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                  {kitchensWithDistance
+                    .filter(k => k.sponsoredCount < 10)
+                    .sort((a,b) => a.sponsoredCount - b.sponsoredCount)
+                    .slice(0, urgencyDisplayCount)
+                    .map((k) => {
+                      const count = k.sponsoredCount;
+                      const isCritSelection = count <= 2;
+                      return (
+                        <div
+                          key={k.id}
+                          className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                            isCritSelection 
+                              ? 'border-red-100 bg-red-50/20 hover:border-red-200' 
+                              : 'border-slate-100 bg-slate-50/40 hover:border-slate-200'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            <h5 className="text-xs font-bold text-slate-800 truncate leading-snug">{k.name}</h5>
+                            
+                            <div className="flex items-center gap-2 select-none">
+                              <span className="text-[8px] font-mono text-slate-405 block tracking-wide font-medium">Stock levels:</span>
+                              <div className="w-16 h-1 bg-slate-200 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full ${isCritSelection ? 'bg-red-500' : 'bg-amber-500'}`} 
+                                  style={{ width: `${Math.max(10, (count / 10) * 100)}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col items-end gap-1.5 shrink-0 select-none">
+                            <span className={`text-[9px] font-mono font-extrabold px-2 py-0.5 rounded-md ${
+                              isCritSelection ? 'bg-red-50 text-red-700 font-black animate-pulse' : 'bg-amber-50 text-amber-800'
+                            }`}>
+                              {count} plates
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                // Switch mobile view tab to 'explore' to unveil the partner grid
+                                setMobileNavTab('explore');
+                                // Force set the selected kitchen id to expand its details
+                                setSelectedKitchenId(k.id);
+                                // Scroll smoothly to the target card
+                                setTimeout(() => {
+                                  const ele = document.getElementById(`donor-eatery-card-${k.id}`);
+                                  if (ele) {
+                                    ele.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  }
+                                }, 200);
+                              }}
+                              className="bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-[8px] uppercase tracking-wider px-3 py-1.5 rounded-xl shadow-3xs cursor-pointer transition-all active:scale-95"
+                            >
+                              Fund Spot
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {kitchensWithDistance.filter(k => k.sponsoredCount < 10).length > urgencyDisplayCount && (
+                      <div className="pt-2 pb-4 shrink-0">
+                        <button
+                          onClick={() => setUrgencyDisplayCount(prev => prev + 5)}
+                          className="bg-slate-50 hover:bg-slate-100 text-[10.5px] font-bold text-slate-600 border border-slate-200/80 rounded-xl py-2 w-full text-center cursor-pointer block"
+                        >
+                          Show More Eateries (+{Math.min(kitchensWithDistance.filter(k => k.sponsoredCount < 10).length - urgencyDisplayCount, 5)} remaining)
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+            </div> {/* Close Critical Urgency Radar Card */}
+
+          </div> {/* Close COLUMN A wrapper */}
+
+          {/* COLUMN B: LOCAL PARTNER DIRECTORY (Right column on desktop, explore tab on mobile) */}
+          <div className={`space-y-4 ${mobileNavTab === 'explore' ? 'block' : 'hidden lg:block'}`}>
             
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/50 select-none">
               <div>
@@ -938,10 +1246,10 @@ K. Ramachandran, Finance Trustee Atithi Division.
               </div>
             </div>
 
-            {/* Grid display layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Grid display layout: stacked single column on desktop & mobile, nice dual column on full-width tablet */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-1 gap-4 items-start font-sans">
               {displayedKitchens.length === 0 ? (
-                <div className="bg-white border border-slate-200/60 p-8 rounded-3xl text-center text-slate-450 col-span-2">
+                <div className="bg-white border border-slate-200/60 p-8 rounded-3xl text-center text-slate-450 col-span-full">
                   <Users className="w-10 h-10 text-slate-350 mx-auto mb-2 stroke-[1.2]" />
                   <p className="text-xs font-semibold">No kitchen partners found matching the active search filters.</p>
                   <button
@@ -1151,7 +1459,7 @@ K. Ramachandran, Finance Trustee Atithi Division.
                       </div>
 
                       {/* Footer interaction bar */}
-                      <div className="bg-slate-50 border-t border-slate-100/60 px-4 py-2 flex items-center justify-between text-[9px] select-none tracking-wide text-slate-450 text-slate-400">
+                      <div className="bg-slate-50 border-t border-slate-100/60 px-4 py-2 flex items-center justify-between text-[9px] select-none tracking-wide text-slate-400">
                         <span className="font-semibold uppercase font-mono">{k.rating} ★ Rating</span>
                         {!isSelected && (
                           <span className="text-emerald-700 hover:text-emerald-950 flex items-center gap-1 font-black uppercase font-mono">
@@ -1181,291 +1489,9 @@ K. Ramachandran, Finance Trustee Atithi Division.
             )}
           </div>
 
-          {/* CONTINUOUS SECTIONS (Quick Actions) */}
-          <div className={`space-y-8 ${mobileNavTab === 'quick_actions' ? 'block' : 'hidden md:block'}`}>
-            
-            {/* COLUMN A: DIRECT-AID SMART BUNDLE ALLOCATOR */}
-            <div className="border-b border-slate-200 pb-8 space-y-4">
-              <div className="flex items-center gap-2 mb-1 select-none">
-                <div className="p-2 bg-emerald-50 rounded-xl text-emerald-800">
-                  <Sparkle className="w-5 h-5 animate-spin-slow text-emerald-600" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-black text-slate-805 leading-tight text-slate-800">Direct-Aid Smart Bundle</h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Automated deficit balance mitigation</p>
-                </div>
-              </div>
-
-              <p className="text-[11px] text-slate-550 leading-relaxed font-light select-none text-slate-500">
-                No preference? Our direct algorithm automatically loops and allocates your chosen meals count evenly to the <span className="font-semibold text-emerald-800">top 5 kitchens running lowest on active food stock</span> right now.
-              </p>
-
-              {/* Success, processing, or form status logic */}
-              {bundleSuccess ? (
-                <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl text-center select-none space-y-2">
-                  <div className="w-9 h-9 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-650">
-                    <Check className="w-5 h-5 stroke-[3.5]" />
-                  </div>
-                  <h4 className="text-xs font-bold text-emerald-950">Allocation Bundle Complete!</h4>
-                  <p className="text-[10px] text-emerald-800 leading-normal font-light">
-                    Your allocation has finished processing. Check the Direct Session logs in the next card blocks below to view receipts.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setBundleSuccess(false)}
-                    className="mt-2 text-[9px] font-black uppercase tracking-wider text-white bg-slate-900 px-3.5 py-1.5 rounded-lg hover:bg-slate-850"
-                  >
-                    Load New Bundle System
-                  </button>
-                </div>
-              ) : bundleSponsoring ? (
-                <div className="p-5 border border-dashed border-slate-200 rounded-2xl text-center space-y-3.5 select-none animate-pulse">
-                  <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-emerald-600 animate-spin mx-auto" />
-                  <div>
-                    <h5 className="text-[11px] font-bold text-slate-800 font-sans">Executing sequential thread checks...</h5>
-                    <div className="text-[9px] font-mono text-emerald-800 mt-1 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100 max-w-full truncate inline-block">
-                      {bundleStep || 'Scanning global ledger pools...'}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <form onSubmit={handleSmartBundleSubmit} className="space-y-4">
-                  <div>
-                    <span className="block text-[8px] font-mono text-slate-400 uppercase tracking-widest font-black mb-2 select-none">Standard Allocation Pool (meals)</span>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {[25, 50, 100, 250].map((num) => (
-                        <button
-                          type="button"
-                          key={num}
-                          onClick={() => {
-                            setBundleSize(num);
-                            setCustomBundleCount('');
-                          }}
-                          className={`py-2 px-1 rounded-xl border transition-all text-center cursor-pointer font-mono text-xs ${
-                            bundleSize === num && !customBundleCount
-                              ? 'border-emerald-600 bg-emerald-50/40 font-black text-emerald-950'
-                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-350'
-                          }`}
-                        >
-                          <span className="block font-sans font-bold text-[10px]">{num} Meals</span>
-                          <span className="text-[8px] text-slate-400 block mt-0.5">₹{num * 40}</span>
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="mt-1.5 flex items-center justify-between gap-1 border border-slate-250/70 bg-white p-1 rounded-xl">
-                      <span className="text-[9px] text-slate-400 pl-1.5">Custom volume loop:</span>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <input
-                          type="number"
-                          placeholder="e.g. 150"
-                          value={customBundleCount}
-                          min="1"
-                          onChange={(e) => setCustomBundleCount(e.target.value)}
-                          className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 text-center font-mono font-bold text-xs w-16 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
-                        />
-                        <span className="text-[8.5px] font-mono text-slate-400 uppercase pr-1.5">meals</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Smart Allocation Info Summary panel */}
-                  <div className="bg-emerald-50/50 border border-emerald-100/50 p-3 rounded-2xl select-none text-[9.5px] text-emerald-800 leading-normal space-y-1">
-                    <p className="font-extrabold text-emerald-950 flex items-center gap-1 font-mono uppercase text-[8px] tracking-wider mb-1">
-                      smart distribution forecast
-                    </p>
-                    <p>• Allocates <span className="font-bold underline">{Math.floor((parseInt(customBundleCount) || bundleSize) / 5)} meals</span> directly to top 5 lowest-stock locations.</p>
-                    <p>• Simulated net cost: <span className="font-bold font-mono">₹{(parseInt(customBundleCount) || bundleSize) * 40}</span> at direct cost rates (₹40/meal).</p>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-[11px] p-3 rounded-xl transition-all shadow-xs tracking-wider flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
-                  >
-                    <Sparkle className="w-4 h-4 shrink-0 animate-spin-slow" />
-                    <span>SPONSOR SMART BUNDLE (₹{(parseInt(customBundleCount) || bundleSize) * 40})</span>
-                  </button>
-                </form>
-              )}
-            </div>
-
-            {/* COLUMN B: CRITICAL URGENCY RADAR */}
-            <div className="border-b border-slate-200 pb-8 space-y-4">
-              <div className="flex items-center gap-2 mb-1 select-none">
-                <div className="p-2 bg-rose-50 rounded-xl text-rose-700">
-                  <AlertTriangle className="w-5 h-5 text-rose-600 animate-bounce-slow" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-black text-slate-850 leading-tight text-slate-800 font-sans">Critical Urgency Radar</h4>
-                  <p className="text-[10px] text-slate-450 mt-0.5 font-mono">Real-time depletion alerts</p>
-                </div>
-              </div>
-
-              <p className="text-[11px] text-slate-500 leading-relaxed font-light select-none">
-                The radar shows partner kitchens whose food reserves are under <span className="font-semibold text-rose-700 bg-rose-50 px-1 py-0.5 rounded-sm">10 pieces</span>. Intervene immediately to restore standard food security.
-              </p>
-
-              {/* Urgency List */}
-              <div className="space-y-2.5 pr-1">
-                {kitchensWithDistance.filter(k => k.sponsoredCount < 10).length === 0 ? (
-                  <div className="border border-dashed border-slate-200 p-6 rounded-2xl text-center select-none text-slate-400">
-                    <Check className="w-8 h-8 text-emerald-600 bg-emerald-50 rounded-full p-2 mx-auto mb-2" />
-                    <h5 className="text-[11px] font-bold text-slate-800">Ecosystem Stock Safe!</h5>
-                    <p className="text-[9.5px] text-slate-450 leading-relaxed mt-0.5">
-                      Excellent, all our kitchen spots have 10+ available meals prepaid. No critical deficiencies detected.
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                  {kitchensWithDistance
-                    .filter(k => k.sponsoredCount < 10)
-                    .sort((a,b) => a.sponsoredCount - b.sponsoredCount)
-                    .slice(0, urgencyDisplayCount)
-                    .map((k) => {
-                      const count = k.sponsoredCount;
-                      const isCritSelection = count <= 2;
-                      return (
-                        <div
-                          key={k.id}
-                          className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
-                            isCritSelection 
-                              ? 'border-red-100 bg-red-50/20 hover:border-red-200' 
-                              : 'border-slate-100 bg-slate-50/40 hover:border-slate-200'
-                          }`}
-                        >
-                          <div className="min-w-0 flex-1 space-y-1.5">
-                            <h5 className="text-xs font-bold text-slate-800 truncate leading-snug">{k.name}</h5>
-                            
-                            <div className="flex items-center gap-2 select-none">
-                              <span className="text-[8px] font-mono text-slate-400 block tracking-wide font-medium">Stock levels:</span>
-                              <div className="w-16 h-1 bg-slate-200 rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full ${isCritSelection ? 'bg-red-500' : 'bg-amber-500'}`} 
-                                  style={{ width: `${Math.max(10, (count / 10) * 100)}%` }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col items-end gap-1.5 shrink-0 select-none">
-                            <span className={`text-[9px] font-mono font-extrabold px-2 py-0.5 rounded-md ${
-                              isCritSelection ? 'bg-red-50 text-red-700 font-black animate-pulse' : 'bg-amber-50 text-amber-800'
-                            }`}>
-                              {count} plates
-                            </span>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedKitchenId(k.id);
-                                setTimeout(() => {
-                                  const ele = document.getElementById(`donor-eatery-card-${k.id}`);
-                                  if (ele) ele.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }, 150);
-                              }}
-                              className="bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-[8px] uppercase tracking-wider px-2.5 py-1 rounded-md shadow-3xs cursor-pointer transition-colors active:scale-95"
-                            >
-                              Fund Spot
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {kitchensWithDistance.filter(k => k.sponsoredCount < 10).length > urgencyDisplayCount && (
-                      <div className="pt-2 pb-4 shrink-0">
-                        <button
-                          onClick={() => setUrgencyDisplayCount(prev => prev + 5)}
-                          className="bg-slate-50 hover:bg-slate-100 text-[10.5px] font-bold text-slate-600 border border-slate-200/80 rounded-xl py-2 w-full text-center cursor-pointer block"
-                        >
-                          Show More Eateries (+{Math.min(kitchensWithDistance.filter(k => k.sponsoredCount < 10).length - urgencyDisplayCount, 5)} remaining)
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-            </div>
-
-          {/* SECTION C: RECENT ACTIONS / HISTORY */}
-          <div className="space-y-5 pb-8">
-            <div className="flex items-center justify-between pointer-events-none select-none">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-emerald-50 rounded-xl text-emerald-800 animate-none">
-                  <History className="w-4.5 h-4.5 text-emerald-600" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-black text-slate-850">Your Contribution History</h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Recent sponsorships and actions</p>
-                </div>
-              </div>
-              <span className="font-mono text-[9px] bg-slate-100 text-slate-500 border border-slate-200 rounded-xl px-2.5 py-1">
-                {sortedPastDonations.length} total actions
-              </span>
-            </div>
-
-            <div className="divide-y divide-slate-100 select-text leading-relaxed text-xs">
-              {sortedPastDonations.length === 0 ? (
-                <div className="text-center py-12 select-none text-slate-400 font-sans">
-                  <Heart className="w-10 h-10 text-slate-200 mx-auto mb-2 opacity-60" />
-                  <p className="text-xs font-bold text-slate-755">No sponsorships completed yet</p>
-                  <p className="text-[10px] text-slate-400 mt-1 max-w-[280px] mx-auto font-light leading-normal">
-                    Sponsor any individual partner eatery from the grid list or the Smart Allocator to see live certified receipts.
-                  </p>
-                </div>
-              ) : (
-                <>
-                {sortedPastDonations.slice(0, historyDisplayCount).map((d, idx) => (
-                  <div key={d.id} className={`py-4 flex flex-col sm:flex-row gap-4 items-start justify-between ${idx === 0 ? 'pt-0' : ''}`}>
-                    <div className="space-y-1.5 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-emerald-600 shrink-0" />
-                        <h4 className="font-extrabold text-slate-800 text-[12.5px] leading-none">{d.kitchenName}</h4>
-                        <span className="font-mono text-[9px] text-slate-400 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded-md shrink-0">
-                          {new Date(d.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                      
-                      <p className="text-[11.5px] text-slate-600 leading-relaxed font-light">
-                        Deposited <strong className="font-semibold text-emerald-800">{d.mealsCount} active meals</strong>. Direct check sum <span className="font-mono">₹{d.amount}</span> cleared.
-                      </p>
-
-                      {d.message && (
-                        <div className="p-2 border border-emerald-100/60 bg-emerald-50/15 text-emerald-950 rounded-xl text-[10.5px] italic font-medium">
-                          "{d.message}"
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col items-stretch sm:items-end gap-1 shrink-0 w-full sm:w-auto select-none">
-                      <span className="text-[11px] font-mono font-black text-slate-700 bg-slate-50 border border-slate-200 px-3 py-1 rounded-xl block text-center">
-                        ₹{d.amount} funded
-                      </span>
-                      <span className="text-[8px] font-mono text-emerald-700 font-extrabold tracking-wider bg-emerald-50 border border-emerald-100/50 px-2 py-0.5 rounded-md block text-center uppercase">
-                        ✓ INSTANT CLEARING
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                {sortedPastDonations.length > historyDisplayCount && (
-                  <div className="pt-4 shrink-0">
-                    <button
-                      onClick={() => setHistoryDisplayCount(prev => prev + 10)}
-                      className="bg-slate-50 hover:bg-slate-100 text-[10.5px] font-bold text-slate-600 border border-slate-200/80 rounded-xl py-2 w-full text-center cursor-pointer block"
-                    >
-                      Show More History (+{Math.min(sortedPastDonations.length - historyDisplayCount, 10)} remaining)
-                    </button>
-                  </div>
-                )}
-                </>
-              )}
-            </div>
-
-          </div>
-
-          </div>
-
         </div>
+
+      </div>
 
       </div>
 
@@ -1733,6 +1759,240 @@ K. Ramachandran, Finance Trustee Atithi Division.
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* 2.6 PAYMENT & TAX METHODS MODAL */}
+      <AnimatePresence>
+        {isEditingPaymentTax && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsEditingPaymentTax(false)}
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9995]"
+            />
+
+            {/* Modal Content */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-3xl shadow-2xl z-[9996] flex flex-col overflow-hidden max-h-[90vh] border border-slate-100"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 p-6">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
+                    <ShieldCheck className="w-5 h-5 fill-emerald-100 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-sm text-slate-950 font-sans">Payment & Tax Methods</h3>
+                    <p className="text-[10px] font-mono text-slate-404 uppercase tracking-wider">Configure payment linkage & PAN</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingPaymentTax(false)}
+                  className="p-1.5 rounded-full hover:bg-slate-100 text-slate-450 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Form Body */}
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setDonorPan(tempPan);
+                  setDonorAddress(tempAddress);
+                  setNotifications(prev => [
+                    {
+                      id: `notif-tax-${Date.now()}`,
+                      type: 'success',
+                      title: 'Payment & Tax Profile Updated! 🪙',
+                      message: `Your billing address and PAN info (${tempPan || 'N/A'}) were locally saved.`,
+                      timestamp: new Date().toISOString(),
+                      read: false,
+                    },
+                    ...prev
+                  ]);
+                  setIsEditingPaymentTax(false);
+                }}
+                className="p-6 space-y-4 overflow-y-auto font-sans text-left"
+              >
+                <div className="space-y-1">
+                  <label className="text-[9px] font-mono font-black uppercase tracking-widest block text-slate-400">
+                    PAN (Permanent Account Number)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={10}
+                    value={tempPan}
+                    onChange={(e) => setTempPan(e.target.value.toUpperCase())}
+                    placeholder="Enter 10-Digit PAN (e.g. ABCDE1234F)"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3 py-2.5 text-xs text-slate-850 font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500 font-bold"
+                  />
+                  {tempPan && tempPan.length < 10 && (
+                    <p className="text-[8.5px] text-amber-600 font-semibold font-sans">10-Digit PAN required for Indian tax declarations</p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-mono font-black uppercase tracking-widest block text-slate-400">
+                    Billing / Legal Address
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={tempAddress}
+                    onChange={(e) => setTempAddress(e.target.value)}
+                    placeholder="Enter full legal address for tax exemption receipts"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 font-sans"
+                  />
+                </div>
+
+                {/* Simulated Payment Linkage block */}
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3 select-none">
+                  <h4 className="text-[9px] font-mono font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                    <CreditCard className="w-3.5 h-3.5 text-slate-500" /> Linked Payment Instruments
+                  </h4>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2.5 bg-white border border-slate-100 rounded-xl text-xs">
+                      <div className="flex items-center gap-2 font-sans">
+                        <div className="p-1 bg-slate-50 border border-slate-201 rounded text-slate-600 text-[10px] font-mono font-bold leading-none">
+                          UPI
+                        </div>
+                        <span className="font-semibold text-slate-705 font-mono tracking-tight text-[11px]">{tempUPI}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newUpi = prompt("Enter new default UPI ID (e.g. name@okhdfc):", tempUPI);
+                          if (newUpi) setTempUPI(newUpi);
+                        }}
+                        className="text-[9.5px] text-emerald-700 hover:text-emerald-800 font-black uppercase tracking-wider bg-emerald-50 px-2 py-1 rounded cursor-pointer"
+                      >
+                        Change
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2.5 bg-white border border-slate-100 rounded-xl text-xs">
+                      <div className="flex items-center gap-2 font-sans">
+                        <div className="p-1 bg-slate-50 border border-slate-201 rounded text-slate-600 text-[10px] font-mono font-bold leading-none">
+                          CARD
+                        </div>
+                        <span className="font-semibold text-slate-705 font-mono tracking-tight text-[11px]">{tempCard}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newCard = prompt("Enter card suffix (e.g. •••• •••• •••• 1234):", tempCard);
+                          if (newCard) setTempCard(newCard);
+                        }}
+                        className="text-[9.5px] text-emerald-700 hover:text-emerald-800 font-black uppercase tracking-wider bg-emerald-50 px-2 py-1 rounded cursor-pointer"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingPaymentTax(false)}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer font-sans"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white py-2.5 rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer flex items-center justify-center gap-1 font-sans"
+                  >
+                    <Check className="w-4 h-4 stroke-[2.5]" />
+                    <span>Save Methods</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* 2.7 CONTRIBUTION LEDGER / HISTORY SIDE DRAWER */}
+      <AnimatePresence>
+        {isHistoryDrawerOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.4 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsHistoryDrawerOpen(false)}
+              className="fixed inset-0 bg-slate-900 z-[9990] cursor-pointer"
+            />
+            
+            {/* Drawer */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              className="fixed right-0 top-0 bottom-0 w-full sm:max-w-lg bg-white z-[9991] shadow-2xl overflow-y-auto flex flex-col p-6 cursor-default border-l border-slate-200 font-sans text-left"
+            >
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4 select-none">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
+                    <History className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-sm text-slate-950">Sponsorship History</h3>
+                    <p className="text-[11px] font-mono text-slate-400">your complete contribution ledger</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsHistoryDrawerOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Action area: Dynamic Tax invoice downloads */}
+              {sortedPastDonations.length > 0 && (
+                <div className="mb-4 p-3 bg-emerald-50/40 border border-emerald-100/50 rounded-2xl flex items-center justify-between gap-3 select-none">
+                  <div className="space-y-0.5">
+                    <h5 className="text-[11px] font-bold text-slate-800">Section 80G Tax Invoice</h5>
+                    <p className="text-[9.5px] text-slate-400 leading-none font-medium">Generate dynamic certificate for this session</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsHistoryDrawerOpen(false);
+                      setSelectedReceiptForTax(null);
+                      setShowConsolidatedTaxReceipt(true);
+                      setReceiptDownloaded(false);
+                    }}
+                    className="flex shrink-0 items-center gap-1 bg-emerald-700 hover:bg-emerald-800 text-white text-[9.5px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl transition-all shadow-3xs cursor-pointer"
+                  >
+                    <FileText className="w-3 h-3" />
+                    <span>Get 80G Receipts</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Ledger list scroll space */}
+              <div className="flex-1 space-y-4 overflow-y-auto pr-1">
+                {renderContributionHistory()}
+              </div>
             </motion.div>
           </>
         )}
