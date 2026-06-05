@@ -5,6 +5,8 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { Kitchen, MealClaim, Donation } from '../types';
 import { SwipeButton } from './SwipeButton';
 import { VoucherQRScanner } from './VoucherQRScanner';
+import { KitchenNotifications } from './KitchenNotifications';
+import { KitchenSettings } from './KitchenSettings';
 
 // Local Date helper functions
 const getLocalDateString = (dateObj: Date): string => {
@@ -714,14 +716,13 @@ export default function KitchenDashboard({
                             </label>
                             <div className="flex flex-col sm:flex-row gap-2">
                               <div className="relative flex-1">
-                                <KeyRound className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                                 <input
                                   type="text"
                                   maxLength={12}
                                   placeholder="e.g. CH-293810"
                                   value={inputCode}
                                   onChange={(e) => setInputCode(e.target.value.toUpperCase())}
-                                  className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-emerald-600 focus:bg-white rounded-xl px-11 py-3 text-sm font-bold text-slate-800 font-mono tracking-[0.2em] uppercase focus:outline-none transition-all"
+                                  className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-emerald-600 focus:bg-white rounded-xl px-4 py-3 text-sm font-bold text-slate-800 font-mono tracking-[0.2em] uppercase focus:outline-none transition-all"
                                 />
                               </div>
                               
@@ -829,20 +830,18 @@ export default function KitchenDashboard({
               </div>
 
               {/* Received Donations Panel */}
-              <div className={`bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm flex flex-col ${mobileNavTab === 'donations' ? 'block' : 'hidden lg:block'}`}>
-                <div className="flex items-center justify-between gap-4 mb-5 border-b border-slate-100 pb-4 select-none">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 bg-emerald-50 rounded-xl text-emerald-800">
-                      <Heart className="w-4.5 h-4.5 text-rose-600 fill-rose-100" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-black text-slate-800 leading-tight">Received Donations</h4>
-                      <p className="text-[10px] text-slate-400 mt-0.5 font-sans">Prepaid food sponsorships received by your counter</p>
-                    </div>
+              <div className={`space-y-4 ${mobileNavTab === 'donations' ? 'block' : 'hidden lg:block'}`}>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/50 select-none">
+                  <div>
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest font-mono flex items-center gap-1">
+                      <Heart className="w-4 h-4 text-rose-600 fill-rose-100" />
+                      Received Donations
+                    </h3>
+                    <p className="text-[10px] text-slate-450 mt-0.5 font-sans font-medium">Prepaid food sponsorships received by your counter</p>
                   </div>
 
                   {/* Interactive Calendar Segment */}
-                  <div className="relative">
+                  <div className="relative self-start sm:self-auto">
                     <button
                       type="button"
                       onClick={() => setIsDonationsCalendarOpen(!isDonationsCalendarOpen)}
@@ -978,21 +977,18 @@ export default function KitchenDashboard({
             </div>
 
             {/* COLUMN 2: Claimed Meals */}
-            <div className={`${mobileNavTab === 'meals' ? 'block' : 'hidden lg:block'} space-y-6`}>
-              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm overflow-hidden flex flex-col">
-                <div className="flex items-center justify-between gap-4 mb-5 border-b border-slate-100 pb-4 select-none">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 bg-slate-50 rounded-xl text-slate-700 border border-slate-200">
-                      <History className="w-4.5 h-4.5 text-slate-650" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-black text-slate-800 leading-tight">Claimed Meals</h4>
-                      <p className="text-[10px] text-slate-400 mt-0.5 font-sans">Recent claims ledger at this terminal</p>
-                    </div>
-                  </div>
+            <div className={`space-y-4 ${mobileNavTab === 'meals' ? 'block' : 'hidden lg:block'}`}>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/50 select-none">
+                <div>
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest font-mono flex items-center gap-1">
+                    <History className="w-4 h-4 text-emerald-600" />
+                    Claimed Meals
+                  </h3>
+                  <p className="text-[10px] text-slate-450 mt-0.5 font-sans font-medium">Recent claims ledger at this terminal</p>
+                </div>
 
-                  {/* Interactive Calendar Segment */}
-                  <div className="relative">
+                {/* Interactive Calendar Segment */}
+                <div className="relative self-start sm:self-auto">
                     <button
                       type="button"
                       onClick={() => setIsClaimsCalendarOpen(!isClaimsCalendarOpen)}
@@ -1135,423 +1131,47 @@ export default function KitchenDashboard({
                     ))
                   )}
                 </div>
-              </div>
-            </div>        </div>
-
+            </div>
           </div>
         </div>
 
       {/* 2. KITCHEN NOTIFICATION & LOG HUB OVERLAY / SLIDEOUT DRAWER */}
-      <AnimatePresence>
-        {isNotificationsOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.4 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsNotificationsOpen(false)}
-              className="fixed inset-0 bg-slate-900 z-[9990] cursor-pointer"
-            />
-            
-            {/* Drawer */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'tween', duration: 0.3, ease: 'easeOut' }}
-              className="fixed right-0 top-0 bottom-0 w-full sm:max-w-md bg-white z-[9991] shadow-2xl overflow-y-auto flex flex-col p-6 cursor-default border-l border-slate-200"
-            >
-              {/* Drawer Header */}
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4 select-none">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700">
-                    <Bell className="w-5 h-5 fill-emerald-100 text-emerald-700" />
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-sm text-slate-950 uppercase tracking-wide">Kitchen Alerts</h3>
-                    <p className="text-[10px] font-mono text-slate-400">real-time counter updates</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsNotificationsOpen(false)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* NOTIFICATIONS HUB FEED */}
-              <div className="flex-1 flex flex-col min-h-0 space-y-4">
-                <div className="flex items-center justify-between text-xs pb-1 select-none text-slate-400">
-                  <span className="font-mono text-[9px] font-black uppercase tracking-wider">Live Register Stream</span>
-                  {unreadCount > 0 && (
-                    <button
-                      onClick={markAllAsRead}
-                      className="text-emerald-700 hover:text-emerald-950 text-[10px] font-extrabold hover:underline cursor-pointer flex items-center gap-1 bg-transparent border-0"
-                    >
-                      <Check className="w-3 h-3 stroke-[2.5]" />
-                      <span>Mark all as read</span>
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex-1 space-y-3 overflow-y-auto no-scrollbar">
-                  {notifications.length === 0 ? (
-                    <div className="text-center py-12 text-slate-400">
-                      <Bell className="w-8 h-8 text-slate-350 mx-auto mb-2 opacity-55" />
-                      <p className="text-xs font-semibold">No alerts or notifications yet.</p>
-                    </div>
-                  ) : (
-                    notifications.map((item) => {
-                      const isUnread = item.unread;
-                      let bgClass = 'bg-white border-slate-200/80 hover:bg-slate-50/50';
-                      let tagLabel = item.type;
-                      let tagClass = 'bg-slate-100 text-slate-707 border-slate-205';
-
-                      if (item.type === 'milestone') {
-                        bgClass = isUnread ? 'bg-amber-50/40 border-amber-200/70' : 'bg-white border-slate-200/80 hover:bg-slate-50';
-                        tagLabel = 'milestone success';
-                        tagClass = 'bg-amber-50 text-amber-800 border-amber-100';
-                      } else if (item.type === 'donation') {
-                        bgClass = isUnread ? 'bg-emerald-50/40 border-emerald-200/70' : 'bg-white border-slate-200/80 hover:bg-slate-50';
-                        tagLabel = 'community sponsor';
-                        tagClass = 'bg-emerald-50 text-emerald-800 border-emerald-100';
-                      } else if (item.type === 'claim') {
-                        bgClass = isUnread ? 'bg-sky-50/40 border-sky-200/70' : 'bg-white border-slate-200/80 hover:bg-slate-50';
-                        tagLabel = 'active claim';
-                        tagClass = 'bg-sky-50 text-sky-850 border-sky-100';
-                      }
-
-                      return (
-                        <div
-                          key={item.id}
-                          onClick={() => handleNotificationClick(item.id)}
-                          className={`border rounded-2xl p-4 transition-all duration-300 relative overflow-hidden text-xs select-text cursor-pointer ${bgClass} ${
-                            isUnread ? 'shadow-3xs ring-1 ring-emerald-500/10' : ''
-                          }`}
-                        >
-                          {/* Unread dot indicator */}
-                          {isUnread && (
-                            <span className="absolute top-4 right-4 h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
-                          )}
-
-                          <div className="flex items-center gap-2 mb-2 select-none">
-                            <div className="p-1 rounded-lg bg-slate-50 border border-slate-100">
-                              {item.icon}
-                            </div>
-                            <span className={`text-[8.5px] font-mono font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${tagClass}`}>
-                              {tagLabel}
-                            </span>
-                            <span className="text-[9px] font-sans font-medium text-slate-400 ml-auto mr-3">
-                              {item.time}
-                            </span>
-                          </div>
-
-                          <h5 className={`text-[11.5px] tracking-tight ${isUnread ? 'font-black text-slate-900' : 'font-bold text-slate-800'}`}>
-                            {item.title}
-                          </h5>
-                          
-                          <p className="text-[11px] text-slate-500 leading-relaxed mt-1">
-                            {item.desc}
-                          </p>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              {/* Drawer Footer */}
-              <div className="pt-4 border-t border-slate-100 mt-4 text-center select-none bg-slate-50/30 rounded-2xl p-3">
-                <span className="text-[9px] font-mono font-black text-slate-400 uppercase tracking-widest block">
-                  Sadhya Registry Terminal Secured
-                </span>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <KitchenNotifications
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        unreadCount={unreadCount}
+        markAllAsRead={markAllAsRead}
+        notifications={notifications}
+        handleNotificationClick={handleNotificationClick}
+      />
 
       {/* ==================== SETTINGS OVERLAYS ==================== */}
-      <AnimatePresence>
-        {activeSettingsTab !== null && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.6 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setActiveSettingsTab(null)}
-              className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs z-[9992] cursor-pointer"
-            />
-
-            {/* Modal Dialog container matching the gorgeous theme */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              transition={{ type: "spring", duration: 0.4 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-3xl shadow-2xl z-[9993] flex flex-col overflow-hidden max-h-[90vh] border border-slate-100"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-slate-100 p-6">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
-                    <SettingsIcon className="w-5 h-5 text-emerald-600 animate-spin-slow" />
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-sm text-slate-950 font-sans">
-                      {activeSettingsTab === 'identity' && 'Payouts & Banking'}
-                      {activeSettingsTab === 'security' && 'Security & Access'}
-                      {activeSettingsTab === 'profile' && 'Kitchen Profile'}
-                    </h3>
-                    <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">
-                      {activeSettingsTab === 'identity' && 'Configure Settlement Settings'}
-                      {activeSettingsTab === 'security' && 'Manage Claim Passkeys'}
-                      {activeSettingsTab === 'profile' && 'Configure Counter Coordinates'}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveSettingsTab(null)}
-                  className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Form Body for Identity */}
-              {activeSettingsTab === 'identity' && (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    setActiveSettingsTab(null);
-                  }}
-                  className="p-6 space-y-4 overflow-y-auto"
-                >
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-mono font-black uppercase tracking-widest block text-slate-500">
-                      Merchant Bank Account No. / UPI ID
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={tempKitchenBankAcc}
-                      onChange={(e) => setTempKitchenBankAcc(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500 font-sans"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-mono font-black uppercase tracking-widest block text-slate-500">
-                      Active UPI IFSC Code
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={tempKitchenIfsc}
-                      onChange={(e) => setTempKitchenIfsc(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3 py-2.5 text-xs text-emerald-800 font-mono tracking-wider focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="p-3.5 bg-emerald-50/70 border border-emerald-100 rounded-2xl space-y-1.5 select-none animate-fadeIn">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9.5px] font-bold text-emerald-950 font-sans">Payout Settlement Type</span>
-                      <span className="text-[7.5px] font-mono font-black uppercase tracking-widest text-emerald-800 border border-emerald-250 bg-white px-2 py-0.5 rounded-md">
-                        Direct Account
-                      </span>
-                    </div>
-                    <div className="flex gap-2 font-sans">
-                      <button
-                        type="button"
-                        onClick={() => setPayoutMethod('instant')}
-                        className={`flex-1 py-1.5 px-3 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border cursor-pointer ${
-                          payoutMethod === 'instant'
-                            ? 'bg-emerald-600 border-emerald-700 text-white shadow-xs'
-                            : 'bg-white text-slate-605 border-slate-250 hover:bg-slate-50'
-                        }`}
-                      >
-                        ⚡ UPI Instant
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPayoutMethod('weekly')}
-                        className={`flex-1 py-1.5 px-3 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border cursor-pointer ${
-                          payoutMethod === 'weekly'
-                            ? 'bg-emerald-600 border-emerald-700 text-white shadow-xs'
-                            : 'bg-white text-slate-605 border-slate-250 hover:bg-slate-50'
-                        }`}
-                      >
-                        🗓️ Batch Weekly
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98] transition-all font-sans font-extrabold text-xs py-3 rounded-2xl shadow-md cursor-pointer text-center"
-                  >
-                    Save Banking Changes
-                  </button>
-                </form>
-              )}
-
-              {/* Form Body for Security */}
-              {activeSettingsTab === 'security' && (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    setActiveSettingsTab(null);
-                  }}
-                  className="p-6 space-y-5 overflow-y-auto"
-                >
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-mono font-black uppercase tracking-widest block text-slate-500">
-                      Counter Claim Verification PIN
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={4}
-                      required
-                      value={tempPin}
-                      onChange={(e) => setTempPin(e.target.value.replace(/\D/g, ''))}
-                      className="w-full text-center tracking-[1em] bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3 py-3 text-sm font-black text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono"
-                    />
-                    <p className="text-[8.5px] text-slate-400 leading-normal text-center">
-                      Required by staff to clear offline or custom manual walk-in redemptions.
-                    </p>
-                  </div>
-
-                  <div className="space-y-3 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs select-none">
-                    <span className="text-[8.5px] font-mono font-black text-slate-400 uppercase tracking-widest block">Counter Safety Rules</span>
-                    
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-bold text-slate-800 text-[10.5px]">Device Passkey Gate</p>
-                        <p className="text-[8.5px] text-slate-400 font-sans">Require supervisor credential to exit browser mode</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={passkeyRequired}
-                        onChange={(e) => setPasskeyRequired(e.target.checked)}
-                        className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer"
-                      />
-                    </div>
-
-                    <div className="w-full border-t border-slate-200" />
-
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-bold text-slate-800 text-[10.5px]">Auto-Clear Scans</p>
-                        <p className="text-[8.5px] text-slate-400 font-sans">Instantly redeem QR claims without confirmation click</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={scanAutoVerify}
-                        onChange={(e) => setScanAutoVerify(e.target.checked)}
-                        className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.98] transition-all font-sans font-extrabold text-xs py-3 rounded-2xl shadow-md cursor-pointer text-center"
-                  >
-                    Save Security Code
-                  </button>
-                </form>
-              )}
-
-              {/* Form Body for Profile */}
-              {activeSettingsTab === 'profile' && (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    // Save to local active overrides
-                    setKitchenOverrides(prev => ({
-                      ...prev,
-                      [selectedKitchenId]: {
-                        name: tempKitchenName,
-                        address: tempKitchenAddress,
-                        phone: tempKitchenPhone,
-                        mealDescription: tempKitchenMealDesc
-                      }
-                    }));
-                    setActiveSettingsTab(null);
-                  }}
-                  className="p-6 space-y-4 overflow-y-auto"
-                >
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-mono font-black uppercase tracking-widest block text-slate-500">
-                      Kitchen Terminal Name
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={tempKitchenName}
-                      onChange={(e) => setTempKitchenName(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500 font-sans"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-mono font-black uppercase tracking-widest block text-slate-500">
-                      Signature Sadhya Composition
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={tempKitchenMealDesc}
-                      onChange={(e) => setTempKitchenMealDesc(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 font-sans"
-                    />
-                    <p className="text-[8.5px] text-slate-400 leading-normal">
-                      Detailed on seeker-facing meal claim receipts (e.g. 14 traditional side curries, Payasam).
-                    </p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-mono font-black uppercase tracking-widest block text-slate-500">
-                      Counter Hotline
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={tempKitchenPhone}
-                      onChange={(e) => setTempKitchenPhone(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-medium focus:outline-none font-sans"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-mono font-black uppercase tracking-widest block text-slate-500">
-                      Counter Physical Address
-                    </label>
-                    <textarea
-                      required
-                      rows={2}
-                      value={tempKitchenAddress}
-                      onChange={(e) => setTempKitchenAddress(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl p-3 text-xs text-slate-800 font-medium focus:outline-none font-sans resize-none"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98] transition-all font-sans font-extrabold text-xs py-3 rounded-2xl shadow-md cursor-pointer text-center"
-                  >
-                    Save Profile Changes
-                  </button>
-                </form>
-              )}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <KitchenSettings
+        activeSettingsTab={activeSettingsTab}
+        setActiveSettingsTab={setActiveSettingsTab}
+        tempKitchenBankAcc={tempKitchenBankAcc}
+        setTempKitchenBankAcc={setTempKitchenBankAcc}
+        tempKitchenIfsc={tempKitchenIfsc}
+        setTempKitchenIfsc={setTempKitchenIfsc}
+        payoutMethod={payoutMethod}
+        setPayoutMethod={setPayoutMethod}
+        tempPin={tempPin}
+        setTempPin={setTempPin}
+        passkeyRequired={passkeyRequired}
+        setPasskeyRequired={setPasskeyRequired}
+        scanAutoVerify={scanAutoVerify}
+        setScanAutoVerify={setScanAutoVerify}
+        tempKitchenName={tempKitchenName}
+        setTempKitchenName={setTempKitchenName}
+        tempKitchenMealDesc={tempKitchenMealDesc}
+        setTempKitchenMealDesc={setTempKitchenMealDesc}
+        tempKitchenPhone={tempKitchenPhone}
+        setTempKitchenPhone={setTempKitchenPhone}
+        tempKitchenAddress={tempKitchenAddress}
+        setTempKitchenAddress={setTempKitchenAddress}
+        selectedKitchenId={selectedKitchenId}
+        setKitchenOverrides={setKitchenOverrides}
+      />
 
       <VoucherQRScanner
         isOpen={isScannerOpen}
@@ -1615,5 +1235,6 @@ export default function KitchenDashboard({
         </div>
       </div>
     </div>
+  </div>
   );
 }
