@@ -32,8 +32,8 @@ export default function DetailsView({ type, onBack, onLoginClick, onRegisterClic
         <div>
           {/* Header */}
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 border border-amber-100 shadow-sm">
-              <Heart className="w-6 h-6 fill-amber-500 text-amber-500" />
+            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 border border-emerald-100 shadow-sm">
+              <Heart className="w-6 h-6 fill-emerald-500 text-emerald-500" />
             </div>
             <div>
               <h2 className="text-xl md:text-2xl font-serif font-bold text-slate-800 lowercase tracking-tight">
@@ -48,7 +48,7 @@ export default function DetailsView({ type, onBack, onLoginClick, onRegisterClic
           {/* Description Text */}
           <div className="space-y-4 text-xs md:text-sm text-slate-650 leading-relaxed font-sans mb-8">
             <p>
-              In traditional Malayalam culture, <span className="italic font-serif font-black text-emerald-800">"chorundo?"</span> is more than a daily greeting. It represents the highest expression of kinship and care—asking a guest, traveler, or neighbor if they have eaten.
+              In traditional Malayalam culture, <span className="italic font-sans font-black text-emerald-800">"chorundo?"</span> is more than a daily greeting. It represents the highest expression of kinship and care—asking a guest, traveler, or neighbor if they have eaten.
             </p>
             <p>
               When you donate to chorundo?, your money is not lost in administrative overhead or complex infrastructure. Instead, **every single rupee** directly funds hot meals served on raw plantain leaves at authentic local neighborhood eateries (our Partner Kitchens).
@@ -83,7 +83,7 @@ export default function DetailsView({ type, onBack, onLoginClick, onRegisterClic
                 Hyper-Local Support
               </h4>
               <p className="text-[11px] text-slate-500 leading-normal">
-                Select specific restaurants in Kerala (Aluva, Kochi, Trivandrum, Kozhikode) that you wish to fund. Keep your local junction and high street flourishing during testing times!
+                Select specific restaurants in Keralam (Aluva, Kochi, Trivandrum, Kozhikode) that you wish to fund. Keep your local junction and high street flourishing during testing times!
               </p>
             </div>
 
@@ -102,7 +102,7 @@ export default function DetailsView({ type, onBack, onLoginClick, onRegisterClic
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 border-t border-slate-200/60 pt-6">
             <button
               onClick={() => onLoginClick('donor')}
-              className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 active:scale-98 text-white text-xs font-semibold px-6 py-3 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+              className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 active:scale-98 text-white text-xs font-semibold px-6 py-3 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
             >
               <LogIn className="w-4 h-4" />
               Donor Login
@@ -136,7 +136,7 @@ export default function DetailsView({ type, onBack, onLoginClick, onRegisterClic
           {/* Description Text */}
           <div className="space-y-4 text-xs md:text-sm text-slate-650 leading-relaxed font-sans mb-8">
             <p>
-              Are you a local restaurant owner in Kerala? Join chorundo?'s zero-cost hospitality network. Sponsoring citizens buy meal vouchers, and your kitchen directly serves hot food to patrons. We reimburse you **fully and instantly** for every voucher redeemed or walk-in logged!
+              Are you a local restaurant owner in Keralam? Join chorundo?'s zero-cost hospitality network. Sponsoring citizens buy meal vouchers, and your kitchen directly serves hot food to patrons. We reimburse you **fully and instantly** for every voucher redeemed or walk-in logged!
             </p>
             <p>
               We designed chorundo? with mom-and-pop local eateries or small junction tea-stalls in mind. No expensive integration scripts, no API requirements. Simply log into this portal on phone browser, or print pre-assigned paper sheets if you don't use digital counters!

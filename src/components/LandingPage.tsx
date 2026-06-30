@@ -215,7 +215,7 @@ export default function LandingPage({
             <div className="text-center py-4 max-w-2xl mx-auto mb-12">
               <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 text-[10px] font-black tracking-widest uppercase border border-emerald-100 rounded-full px-3 py-1 font-mono mb-3 animate-pulse">
                 <Sparkles className="w-3 h-3 text-emerald-600 fill-emerald-500" />
-                Kerala's Food-Dignity Campaign
+                Keralam's Food-Dignity Campaign
               </span>
               <h1 className="text-3xl md:text-5xl font-bold font-serif text-slate-800 tracking-tight lowercase leading-none">
                 the warm hospitality of a <span className="text-emerald-700 font-extrabold italic font-serif">heartful</span> meal.
@@ -430,7 +430,7 @@ export default function LandingPage({
                 </div>
 
                 <div className="md:col-span-5 bg-white border border-slate-200/80 p-6 rounded-3xl shadow-sm space-y-4">
-                  <div className="border border-slate-150 p-4 rounded-2xl bg-emerald-50/25 space-y-3">
+                  <div className="border border-slate-100 p-4 rounded-2xl bg-emerald-50/25 space-y-3">
                     <div className="flex items-center gap-2 text-emerald-950">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
                       <span className="font-bold text-xs uppercase tracking-wider font-mono">lightweight counters</span>
@@ -450,34 +450,34 @@ export default function LandingPage({
                 <div className="max-w-3xl mx-auto space-y-6 text-left md:text-center flex flex-col items-start md:items-center">
                   <span className="text-[10px] font-mono font-black tracking-widest uppercase text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded">Our Story</span>
                   <h3 className="text-2xl md:text-4xl font-bold font-serif text-slate-800 lowercase tracking-tight">
-                    it all starts in kerala's hearts.
+                    it all starts in keralam's hearts.
                   </h3>
                   <div className="space-y-6 text-left md:text-center">
                     <p className="text-xs md:text-sm text-slate-650 leading-relaxed font-sans">
-                      chorundo? translates literally in Malayalam to <span className="italic font-semibold text-emerald-800">"Did you have meal?"</span>. It is the signature question heard at the front door of every home across the state—rooted in a collective code that no stranger, worker, or neighbor should experience hunger.
+                      <span className="italic font-sans font-black text-emerald-800">chorundo?</span> translates literally in Malayalam to <span className="italic font-semibold text-emerald-800">"Did you have meal?"</span>. It is the signature question heard at the front door of every home across the state—rooted in a collective code that no stranger, worker, or neighbor should experience hunger.
                     </p>
                     <p className="text-xs md:text-sm text-slate-650 leading-relaxed font-sans">
-                      With soaring costs and dynamic struggles, our neighborhood junctions remain vulnerable. We created chorundo? to link citizen solidarity directly to localized dining tables. No marketing overhead, no database synchronization dependencies, and complete transparent traceability.
+                      With soaring costs and dynamic struggles, our neighborhood junctions remain vulnerable. We created <span className="italic font-sans font-black text-emerald-800">chorundo?</span> to link citizen solidarity directly to localized dining tables. No marketing overhead, no database synchronization dependencies, and complete transparent traceability.
                     </p>
                     <p className="text-xs md:text-sm text-slate-650 leading-relaxed font-sans border-t border-dashed border-emerald-100/80 pt-4 mt-2">
-                      Our philosophy is directly inspired by <span className="font-semibold text-emerald-800">Operation Sulaimani</span>—the legendary district-wide food-dignity initiative pioneered in Kozhikode (Calicut), Kerala. Much like that groundbreaking community-funded program, chorundo? believes in ensuring no neighbor goes hungry, preserving absolute privacy and dignity without public queues or identifying those in need. We stand on the shoulders of this timeless vision, keeping Kerala's custom of infinite hospitality alive in the digital age.
+                      Our philosophy is directly inspired by <span className="italic font-semibold text-emerald-800">Operation Sulaimani</span>—the legendary district-wide food-dignity initiative pioneered in Kozhikode (Calicut), Keralam. Much like that groundbreaking community-funded program, <span className="italic font-sans font-black text-emerald-800">chorundo?</span> believes in ensuring no neighbor goes hungry, preserving absolute privacy and dignity without public queues or identifying those in need. We stand on the shoulders of this timeless vision, keeping Keralam's custom of infinite hospitality alive in the digital age.
                     </p>
                   </div>
                   
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 text-left font-mono w-full">
-                    <div className="bg-white border border-slate-150 p-4 rounded-2xl">
+                    <div className="bg-white border border-slate-100 p-4 rounded-2xl">
                       <span className="block text-2xl font-serif font-black text-emerald-800">100%</span>
                       <span className="text-[10px] text-slate-400 uppercase tracking-widest block mt-1 font-bold">to eateries</span>
                     </div>
-                    <div className="bg-white border border-slate-150 p-4 rounded-2xl">
+                    <div className="bg-white border border-slate-100 p-4 rounded-2xl">
                       <span className="block text-2xl font-serif font-black text-emerald-800">0%</span>
                       <span className="text-[10px] text-slate-400 uppercase tracking-widest block mt-1 font-bold">Comm cuts</span>
                     </div>
-                    <div className="bg-white border border-slate-150 p-4 rounded-2xl">
+                    <div className="bg-white border border-slate-100 p-4 rounded-2xl">
                       <span className="block text-2xl font-serif font-black text-emerald-800">4+</span>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-widest block mt-1 font-bold">Kerala Zones</span>
+                      <span className="text-[10px] text-slate-400 uppercase tracking-widest block mt-1 font-bold">Keralam Zones</span>
                     </div>
-                    <div className="bg-white border border-slate-150 p-4 rounded-2xl">
+                    <div className="bg-white border border-slate-100 p-4 rounded-2xl">
                       <span className="block text-2xl font-serif font-black text-emerald-800">100%</span>
                       <span className="text-[10px] text-slate-400 uppercase tracking-widest block mt-1 font-bold">Privacy first</span>
                     </div>
@@ -496,7 +496,7 @@ export default function LandingPage({
                     reach the chorundo team.
                   </h3>
                   <p className="text-xs text-slate-600 leading-relaxed font-sans">
-                    Have questions about restaurant sign-ups, bulk CSR allocations, or local volunteering around Aluva junction? Please drop us a line!
+                    Have questions about restaurant sign-ups, bulk CSR allocations, or local volunteering? Please drop us a line!
                   </p>
                   
                   <div className="space-y-3.5 pt-2 text-xs">
@@ -510,13 +510,13 @@ export default function LandingPage({
                       <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-800 flex items-center justify-center">
                         <Phone className="w-4 h-4" />
                       </div>
-                      <span className="font-semibold text-slate-700">company phone number</span>
+                      <span className="font-semibold text-slate-700">phone number</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-800 flex items-center justify-center">
                         <MapPin className="w-4 h-4" />
                       </div>
-                      <span className="font-semibold text-slate-700">Town Hall Civil Road, Aluva, Kerala</span>
+                      <span className="font-semibold text-slate-700">address</span>
                     </div>
                   </div>
                 </div>
@@ -607,7 +607,7 @@ export default function LandingPage({
           </div>
 
           <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-            chorundo? is an open-source movement bringing transparent dignity to community hunger alleviation across Kerala. Designed and built with traditional Malayalam hospitality principles.
+            chorundo? is an open-source movement bringing transparent dignity to community hunger alleviation across Keralam. Designed and built with traditional Malayalam hospitality principles.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-5 text-[10px] text-slate-400 font-mono tracking-wider uppercase font-black">

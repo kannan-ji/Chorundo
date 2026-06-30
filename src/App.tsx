@@ -314,7 +314,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-[#FAF9F6] flex flex-col items-center justify-center p-4">
         <div className="w-12 h-12 rounded-full border-4 border-emerald-100 border-t-emerald-600 animate-spin mb-4" />
-        <p className="text-sm font-semibold text-slate-650 font-sans">Loading chorundo? Kerala Hospitality...</p>
+        <p className="text-sm font-semibold text-slate-650 font-sans">Loading chorundo? Keralam Hospitality...</p>
       </div>
     );
   }

@@ -746,7 +746,7 @@ export default function SeekerDashboard({
                     <div className="flex gap-2">
                       <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
                       <div>
-                        <span className="font-bold">Did you know?</span> Each ticket grants access to 1 wholesome Kerala meal (traditional curry and rice served on plantain leaves).
+                        <span className="font-bold">Did you know?</span> Each ticket grants access to 1 wholesome Keralam meal (traditional curry and rice served on plantain leaves).
                       </div>
                     </div>
                   </div>

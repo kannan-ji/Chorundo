@@ -99,7 +99,7 @@ export default function DonorDashboard({
       id: 'notif-2',
       type: 'urgency',
       title: 'Critical Stock Deficit',
-      message: 'Sri Muruga Cafe is at 0 available meals of traditional Kerala breakfast, please consider sponsoring.',
+      message: 'Sri Muruga Cafe is at 0 available meals of traditional Keralam breakfast, please consider sponsoring.',
       timestamp: new Date(Date.now() - 1800000).toISOString(),
       read: false,
     },
@@ -321,7 +321,7 @@ export default function DonorDashboard({
 ATITHI DIRECT-AID DIGITAL KITCHEN TRUST SPECIAL TAX PROGRAM
      80G CONTRIBUTION EXEMPTION & INCOMING RECEIPTS SLIP
 -----------------------------------------------------------
-Registration Authority: Joint Trust NGO Division of Kerala State
+Registration Authority: Joint Trust NGO Division of Keralam State
 Standard Verification URL: https://atithi.net/certificates
 Unique Serial Token: ${serialNo}
 Date Issued: ${dateStr}
@@ -338,7 +338,7 @@ CONTRIBUTION HISTORIC HIGHLIGHTS:
 Total Funded: INR ₹${amount.toLocaleString()}
 Audited Text Representation: ${convertNumberToWords(amount)}
 Sourced Through: Atithi Live Register Pipelines
-Volume Delivered: ${amount / 40} standard Kerala breakfast elements
+Volume Delivered: ${amount / 40} standard Keralam breakfast elements
 
 NGO DONEES (ATITHI CENTRALIZED ACCOUNT):
 ----------------------------------------

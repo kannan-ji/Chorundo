@@ -9,17 +9,17 @@ function seedRandom(seed: number) {
   };
 }
 
-// Generates exactly 200 realistic dummy partner kitchens distributed across different hubs in Kerala
+// Generates exactly 200 realistic dummy partner kitchens distributed across different hubs in Keralam
 function generateDummyKitchens(): Kitchen[] {
   const list: Kitchen[] = [];
   const rand = seedRandom(20260528); // Standard fixed seed for perfect stability across hot-reloads and refreshes
 
   const cuisines = [
-    'Traditional Kerala Rice & Curry',
+    'Traditional Keralam Rice & Curry',
     'Malabar Veg Biriyani',
     'Pure Veg Sadhya & Feasts',
     'Standard South Indian Meals',
-    'Kerala Kanji & Payar Combo',
+    'Keralam Kanji & Payar Combo',
     'Chapati & Vegetable Kurma',
     'Travancore Vegetable Curry',
     'Traditional Kudumbashree Meals'
@@ -28,7 +28,7 @@ function generateDummyKitchens(): Kitchen[] {
   const mealDescriptions = [
     'Rice, sambar, thoran, avial, pickle, and papadam served on a classic plantain leaf basis.',
     'Flavorful Malabar spiced vegetable biriyani with dates pickle, raita, and banana.',
-    'Full Kerala sadhya with red/boiled rice, parippu, sambar, pulissery, avial, thoran, payasam.',
+    'Full Keralam sadhya with red/boiled rice, parippu, sambar, pulissery, avial, thoran, payasam.',
     'Economy meal with parboiled rice, moru curry, cabbage thoran, and mango pickle.',
     'Warm nourishing rice gruel (Kanji) with green gram (payar), chammanthi, and papad.',
     '3 soft round chapatis served with rich vegetable kurma, coconut gravy and salad.',
@@ -63,7 +63,7 @@ function generateDummyKitchens(): Kitchen[] {
     'Ambadi', 'Tharavadu', 'Sadhya', 'Akshaya', 'Janatha', 'Manna',
     'Oottupura', 'Kochi Veg', 'Green Leaf', 'Nadan Cafetaria', 'Vrindavan',
     'Ayodhya', 'Calicut', 'Elite', 'Aryaas', 'Safa', 'Kairali Heritage',
-    'Chorundo Special', 'Pothichoru', 'Kerala Bhojana'
+    'Chorundo Special', 'Pothichoru', 'Keralam Bhojana'
   ];
 
   const middles = [
@@ -119,7 +119,7 @@ function generateDummyKitchens(): Kitchen[] {
     const mealPrice = 25 + Math.floor(rand() * 6) * 5; // 25 to 55 rupees
 
     const streetNum = 5 + Math.floor(rand() * 240);
-    const address = `No. ${streetNum}, Near ${region.name} Junction, ${region.name}, Kerala`;
+    const address = `No. ${streetNum}, Near ${region.name} Junction, ${region.name}, Keralam`;
     const phone = `+91 9447${10000 + Math.floor(rand() * 89999)}`;
     const image = images[Math.floor(rand() * images.length)];
 
@@ -154,7 +154,7 @@ const SEED_KITCHENS: Kitchen[] = [
     sponsoredCount: 15,
     claimedCount: 240,
     rating: 4.8,
-    cuisine: 'Traditional Kerala Rice & Curry',
+    cuisine: 'Traditional Keralam Rice & Curry',
     phone: '+91 98456 12345',
     image: 'https://images.unsplash.com/photo-1626132647523-66f5bf380027?auto=format&fit=crop&w=800&q=80',
     mealPrice: 35,
@@ -188,7 +188,7 @@ const SEED_KITCHENS: Kitchen[] = [
     phone: '+91 98765 43210',
     image: 'https://images.unsplash.com/photo-1601050690597-df056fb4ce78?auto=format&fit=crop&w=800&q=80',
     mealPrice: 50,
-    mealDescription: 'Full Kerala Sadhya with Payasam and Fried Banana.',
+    mealDescription: 'Full Keralam Sadhya with Payasam and Fried Banana.',
   },
   {
     id: 'kitchen-4',

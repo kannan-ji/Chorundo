@@ -19,7 +19,7 @@ These represent the primary curated partner kitchens situated across various dis
 
 ## 📦 Simulated Neighborhood Counters (1 - 200)
 
-We also generate exactly 200 regional partner kitchens across Kerala's major hubs (Aluva, Ernakulam, Trivandrum, Kozhikode, Thrissur) for live proximity simulations.
+We also generate exactly 200 regional partner kitchens across Keralam's major hubs (Aluva, Ernakulam, Trivandrum, Kozhikode, Thrissur) for live proximity simulations.
 
 * **Format Pattern**: `dummy-kitchen-[number]` (where number is between `1` and `200`)
 * **Password Passcode**: `counter123` or any passcode of your choice.

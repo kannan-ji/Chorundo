@@ -45,13 +45,13 @@ export default function CustomLandingMap({
     };
   }, [isFullscreen]);
 
-  // Pre-set Kochi/Kerala coordinate presets for interactive testing
+  // Pre-set Kochi/Keralam coordinate presets for interactive testing
   const presets = [
     { name: 'Aluva Civil Junction (Near Janakeeya Spot)', lat: 10.1075, lng: 76.3542 },
     { name: 'Kochi Vyttila Hub (Near Thanal Eatery)', lat: 9.9725, lng: 76.3160 },
     { name: 'Trivandrum Palayam (Near Sadhya Bhavan)', lat: 8.5065, lng: 76.9538 },
     { name: 'Kozhikode Beach/Railway Rd (Near Malaya green)', lat: 11.2505, lng: 75.7812 },
-    { name: 'Generic Kerala Spot (No Meals Nearby)', lat: 10.5276, lng: 76.2144 },
+    { name: 'Generic Keralam Spot (No Meals Nearby)', lat: 10.5276, lng: 76.2144 },
   ];
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -94,7 +94,7 @@ export default function CustomLandingMap({
   // Geolocation trigger
   const handleGPSDetect = () => {
     if (!navigator.geolocation) {
-      setAlertMsg("Your browser does not support geolocation. Please use our Kerala presets below!");
+      setAlertMsg("Your browser does not support geolocation. Please use our Keralam presets below!");
       return;
     }
     setIsLocating(true);
