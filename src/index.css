@@ -19,3 +19,9 @@
   background-color: #DDD9D1 !important;
 }
 
+/* Warm parchment filter replicating CARTO Voyager aesthetic on OpenStreetMap */
+.leaflet-tile {
+  filter: brightness(1.04) contrast(0.92) saturate(0.55) sepia(0.1);
+}
+
+
